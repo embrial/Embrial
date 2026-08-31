@@ -1,0 +1,63 @@
+Strings are interpreted at compile time in lang. In other words interjecting and
+expression block or a statement block into a string converts the yielded result
+of that block into that string.
+
+    const x i32 = 10;
+    const y = x;
+    println("abc {x += 10; if bool.rand(): yield y; yield x;} def");
+
+    println("Hello (if bool.rand(): "steve" else "dave")!");
+
+is semantically equivalent to:
+
+    const x i32 = 10;
+    const y = x;
+    x += 10;
+    const z = if bool.rand(): y else x;
+    println("abc " + z + " def");
+
+    println("Hello " + if bool.rand(): "steve" else "dave" + "!");
+
+String literals are concatonated at compile time. Following is a list of several
+different compile time concationation patterns:
+
+    "abc\ndef"          # after compile time
+
+    "abc\ndef
+    #^^^^^^^^ strings are terminated by ", \n, or EOF. Any trailing whitespace
+    # is trimmed. If the compiler finds ['a', 'b', 'c', '\', 'n', 'd', 'e', 'f',
+    # ' ', ' ', ' ', '\n'] then the string literal will be: ['a', 'b', 'c',
+    # '\n', 'd', 'e', 'f']
+
+    "abc\n" + "def"
+
+    "abc\n" +
+    "def"
+                                
+    # Adjacent string literals are implicitly concatenated. The resulting
+    # string contains a number of newline characters equal to the number of
+    # newline characters occurring between the end of the first literal and the
+    # beginning of the next literal. Whitespace other than newline characters
+    # and comments between literals are discarded.
+    "abc\n" "def"
+
+    "abc"
+    "def"
+
+    "abc
+    "def
+
+    "the start"
+
+
+    "and the end" #concationating to "the start\n\n\nand the end"
+
+    "be carefull # this comment is part of the string
+    # compiler sees['b', 'e', ' ', ..., '#', ' ', 't', ..., 'i', 'n', 'g']
+
+    "stop being lazy\n" + # close your string
+    "and start your" # comment
+    "tomfullery"
+
+
+

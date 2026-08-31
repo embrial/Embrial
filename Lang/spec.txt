@@ -1,0 +1,1335 @@
+Table of contents:
+    Table of contents: ....................................................    1
+    License: ..............................................................   33
+    Notation: .............................................................   42
+    Source code representation: ...........................................   97
+    Charachters: ..........................................................  102
+    Tokens: ...............................................................  104
+    Statement terminators: ................................................  108
+    Whitespace: ...........................................................  113
+    Keywords: .............................................................  117
+    Operators: ............................................................  125
+    Numeric literals: .....................................................  155
+    Escape sequences: .....................................................  205
+    Comments: .............................................................  217
+    Bindings and ownership model: .........................................  229
+    Arrays: ...............................................................  343
+    Branching conditions: .................................................  389
+    second use the following syntax: ......................................  464
+    Optionals: ............................................................  468
+    Object orientation: ...................................................  583
+    Functions: ............................................................  658
+    Generics: .............................................................  726
+    Structs and modules: ..................................................  808
+    Interfaces: ...........................................................  850
+    Classes: ..............................................................  894
+    Enums: ................................................................ 1012
+    Importing: ............................................................ 1077
+    Constraints: .......................................................... 1079
+    Allocators: ........................................................... 1167
+    Entrypoints: .......................................................... 1217
+    Command Line Interface CLI: ........................................... 1247
+
+License:
+    2026 VIFFX
+    This work is licensed under a Creative Commons Attribution 4.0 International
+    License. 
+
+    You are free to share and adapt this specification for any purpose, 
+    even commercially, as long as you give appropriate credit and provide a link
+    to the license.
+
+Notation:
+    The syntax is specified using a variant of Backus-Naur Form
+
+    Syntax > Productions;
+
+    EOF > '\0';
+    CONTROL > EOF | '\u0001' | '\u0002' | ... | '\u0037';
+    NEWLINE > '\n';
+    CHR_WHITESPACE  > '\n' | '\t' | ' ';
+    OR              > '|';
+    QUOTE           > '\'';
+    DOUBLE_QUOTE    > '"';
+    SYM             > '!' | DOUBLE_QUOTE | '#' | ... | '/' | ':' | ';' | '<' | ... | '@' 
+                    | '[' | '\' | ']' | ... | QUOTE | | '{' | OR | '}' | '~';
+    ALPHABETIC      > 'a' | 'b' | 'c' | ... | 'z' | 'A' | 'B' | 'C' | ... | 'Z';
+    NUMERIC         > '0' | '1' | '2' | ... | '9';
+
+    EPSILON > ; # the empty production
+
+    ID > ALPHABETIC lettersOpt | '_';
+        lettersOpt > letters | EPSILON;
+        letters > idValid lettersOpt;
+        idValid > ALPHABETIC | NUMERIC | '_';
+    NUM > NUMERIC numbersOpt;
+        numbersOpt > number numbersOpt | EPSILON;
+        numbers > NUMERIC | '_';
+
+    Productions > Production ';' ProductionsOpt;
+        Production > NonTerminal '>' expressionOpt;
+            NonTerminal > ID;
+
+            expressionOpt > expression | EPSILON;
+            expression > Terminals | NonTerminals;
+                Terminals > Terminal expressionOpt;
+                Terminal > symbol | keyword | "EPSILON" | "EOF" | "ID" | "SYM" | "NUM";
+                    symbol > QUOTE SYM QUOTE;
+                    keyword > DOUBLE_QUOTE ID DOUBLE_QUOTE;
+
+                NonTerminals > NonTerminal NonTerminalsOpt;
+                NonTerminalsOpt > NonTerminals | EPSILON;
+
+        ProducitonsOpt > commentStart Productions | Productions | EOF;
+            commentStart > '\n' | '#' comment commentStart | EPSILON;
+            comment > commentable commentOpt;
+                commentable > SYM | ALPHABETIC | NUMERIC | '\t' | ' ';
+                commentOpt > '\n' commentStart | comment;
+
+    Productions are expressions constructed from terms and alternation operators '|'. 
+    Terminals can be symbols, keywords, or one of the 5 basic classifications EPSILON,
+    EOF, ID, SYM, and NUM which refer to the ones declared in the grammar. Symbols are
+    any single charachter that are non alphabetic or numberic. Keywords are distinct from
+    identifiers in that "name" and name defines a keyword in the language of the grammar, and
+    name refers to a nonterminal defined in the grammar respectivly. 'a' | ... | 'z' implies
+    that there are additional alternatives according to some non explicit rule.
+
+Source code representation:
+
+    Source code in lang is unecoded text encoded in ASCII. This document will refer to a
+    unicode code point as a charachter in the source text.
+
+Charachters:
+
+Tokens:
+    Tokens in lang are a a token class associated with a region of charachters in the
+    source text. Tokens are classified as identifiers, keywords, operators, or literals.
+
+    Statement terminators:
+
+    Statements must terminate with either a newline, or a semicolon. The first newline
+    following a statement is not whitespace. All other newlines are whitespace.
+
+Whitespace:
+    Whitespace is formed from all spaces, horizontal tabs, carriage returns, non excluded
+    newline charachters, and all other non printable charachters.
+
+Keywords:
+    as      continue  implements  module  var
+    assert  enum      include     orelse  while
+    break   expose    interface   return  yield
+    by      fn        label       self
+    catch   for       loop        static
+    const   if        match       try
+
+Operators:
+    Basic  Wrapping  Saturating  Assigning  Wrapping   Saturating
+    +       +%       +|          +=          +%=        +|=
+    -      -%        -|          -=         -%=        -|=
+    *      *%        *|          *=         *%=        %|=
+    /                            /=                       
+    %                            %=                       
+    <<              <<|         <<=                   >>|=
+    >>              >>|         >>=                   >>|=
+
+    Bitwise  Logical  Bitwise
+    &        &&       &=
+    |        ||       |=
+    ^                 ^=
+    !
+
+    Braces
+    (   )
+    [   ]
+    {   }
+
+    Dot  Exclusive  Inclusive  Vararg
+    .    ..         ..=        ...
+
+    Reference  ReferenceTo  Allocation  Single Expression Block
+    ~          $            @           :
+
+    Misc
+    ,   ;
+
+Numeric literals:
+
+    numLit > decimalLit | binaryLit | octalLit | hexLit;
+
+    underscoreOpt > '_' | EPSILON;
+    B > 'b' | 'B';
+    O > 'o' | 'O';
+    oneToNine > '1' | '2' | '3' | ... | '9';
+    binaryDigit > '0' | '1';
+    octalDigit > '0' | '1' | '2' | ... | '7';
+    hexDigit > NUM | 'a' | 'b' | 'c' | ... | 'f' | 'A' | 'B' | 'C' | ... | 'F';
+
+    underscoreOptAndDecimalDigits > '_' decimalDigits | decimalDigits;
+
+    decimalLit > '0' | oneToNine underscoreOptAndDecimalDigits;
+    binaryLit > '0' B binaryDigit underscoreOpt binaryDigits;
+    octalLit > '0' O underscoreOpt octalDigits;
+    hexLit > '0' X  underscoreOpt hexDigits;
+
+    decimalDigits > NUM decimalDigitsOpt;
+    binaryDigits > binaryDigit underscoreOpt binaryDigitsOpt;
+    octalDigits > octalDigit underscoreOpt octalDigitsOpt;
+    hexDigits > hexDigit underscoreOpt hexDigitsOpt;
+
+    decimalDigitsOpt > decimalDigits | EPSILON;
+    binaryDigitsOpt > binaryDigits | EPSILON;
+    octalDigitsOpt > octalDigits | EPSILON;
+    hexDigitsOpt > hexDigits | EPSILON;
+
+    floatLit > decimalFloatLit | hexFloatLit;
+
+    decimalFloatLit > decimalDigits dotDecimalDigitsOpt decimalExponentOpt
+    | decimalDigits decimalExponent
+    | '.' decimalDigits decimalExponentOpt
+    ;
+    dotDecimalDititsOpt > '.' decimalDigits | EPSILON;
+    decimalExponentOpt > decimalExponent | EPSILON;
+    decimalExponent > E PLUS_OR_MINUS decimalDigits;
+    E > 'e' | 'E';
+    PLUS_OR_MINUS > '+' | '-';
+
+    hexFloatLit > '0' X hexMantiassa hexExponent;
+    hexMantissa > underscoreOpt hexDigits dotHexDigitsOpt
+    | '.' hexDigits
+    ;
+    dotHexDigitsOpt > '.' hexDigits | EPSILON;
+    hexExponent > P PLUS_OR_MINUES decimalDigits;
+    P > 'p' | 'P';
+
+
+Escape sequences:
+    \a  allert or bell
+    \b  backspace
+    \f  form feed
+    \n  line feed or newline
+    \r  carriage return
+    \t  horizonatal tab
+    \v  vertical tab
+    \\  backslash
+    \'  single quote
+    \"  double quote
+
+Comments:
+    Comments are used to document programs. Depending on where they occur, external
+    documentation can be produced. Lang has a single form for comments:
+    # begins with hashtag, skips escaped \#, ends with newline or hashtag
+    # begins with hashtag, skips escaped \#, end with newline or hashtag #
+
+    Comments occur anywhere. Nested comments are impossible due to the opening '#'
+    of the enclosed hashtag acting as the closing '#' of the exterior comment. Instead
+    escaping the enclosed comments opening and closing '#' is required:
+    # outer comment \# inner comment \# outer comment #
+    which is functionally just a single comment.
+
+Bindings and ownership model:
+    In lang data is either mutable or imutable. Mutable data is stored in variables,
+    and imuatble data is stored in constants. In general variables and contstants
+    are refered to as bindings because they both associate data with a name.
+    Essentially binding some data to a identifier. To declare a binding first write
+    the mutability, then the type, followed by an name. 
+
+      1 |   var x i32 = 2;              #  mutable binding
+      2 |   const PI f64 = 3.1415926;   # imutable binding
+      3 |
+      4 |   m = 15;             # x can be assigned a new value
+      5 |   PI = 3.14;          # PI cannot be assigned a new value
+
+    Lang uses the same memory model as rust with moves and borrowing. All values
+    have a single binding called its owner. When the owner goes out of scope, the
+    memory is automatically dropped. When assigning one binding to another,
+    ownership is moved rendering the original binding invalid. Assume for this
+    example that assinging one i32 to another moves ownership, instead of
+    copying the value.
+
+      6 |   const y i32 = x;
+      7 |   println(x);         # Borrow error, x is invalid after being moved
+      8 |                       # into y
+      9 |   x = 1;
+     10 |   y = 2;              # Compilation error, y is a constant and cannot
+     11 |                       # be assigned a new value
+
+    Lang uses pointers for mutable borrows, and references for imutable borrows.
+    Both pointers and references contain the address of another binding.
+    Derefencing a pointer allows read and write access to the borrowed memory
+    whereas a deferefencing a reference only allows read access. 
+
+    The '*' type modifier in prefix before a type indicates a pointer to that
+    type. To get a pointer to a binding use the mutable borrow operator '&' in
+    prefix before the binding to be borrowed from.
+
+     12 |   var p1 *i32 = &x;   # p1 is a pointer to an i32
+
+     A pointer is not allowed to borrow memory from a constant binding.
+
+     13 |   var p2 *i32 = &y;   # cannot use mutable borrow operator on a
+     14 |                       # constant binding
+
+    The '~' type modifier in prefix before a type indicates a reference to that
+    type. To get a reference to a binding use the imutable borrow operator '$'
+    in prefix before the binding to be borrowed from.
+    
+     15 |   var r1 ~i32 = $y;   # r1 is a reference to an i32
+
+    Mutating a binding that has atleast one outstanding borrow is illegal
+
+     16 |   x = 42;             # Borrow Error: p2 declared on line 13 is
+     17 |                       # borrowing x's memory.
+
+    A binding is allowed to have either a single pointer mutably borrowing its
+    memory or many references borrowing its memory, but not both borrow types at
+    the same time.
+
+     18 |   
+     19 |   var p2 *i32 = &x;   # Borrow Erorr: p1 declared on line 12 is
+     20 |                       # allready mutably borrowing x. Cannot have two
+     21 |                       # pointers to the same binding at the same time.
+     22 |   var r2 ~i32 = $y;   # Mutliple reference to the same binding may
+     23 |                       # exist at the same time
+     24 |   
+     25 |   var p3 *i32 = p1    # p1 is moved to p3, causing p3 to become a
+     26 |                       # pointer to x and invalidating p1
+     27 |   var r3 ~i32 = r1;   # r1 is coppied to r3, causing r3 to become a
+     28 |                       # a reference to y
+     29 |   
+     30 |   var r4 ~i32 = $x;   # Borrow Error: p3 declared on line 21 is
+     31 |                       # allready mutably borrowing x. At most one
+     32 |                       # borrow type per binding at a time.
+     33 |   var p4 *i32 = &y;   # Borrow Error: r1, r2, and r3 are allready
+     34 |   #             ^       imutably borrowing y. At most one borrow type
+     35 |   #             |       per binding at a time.
+     36 |   #             '------ cannot use mutable borrow operator on constant
+     37 |   #                     binding
+     
+     To access the value of a binding through a pointer use the dereference
+     operator '*' after a dot '.' in postfix.
+
+     38 |   println(p3.*);      # prints 1
+     39 |   println(r3.*);      # prints 2
+
+     A derferenced pointer can be assigned a new value, changing the memory of
+     the binding that the pointer is borrowing from.
+
+     40 |   p3.* = 3;           # Pointers allow mutation of the original's data
+     41 |   println(p3.*);      # prints 3
+     42 |   p3 = invalid;       # invalidate p3 releasing the borrow on x
+     43 |   println(x);         # prints 3
+     44 |   
+     45 |   r3.* = 3;           # Assignment error, cannot mutate y through
+     46 |                       # imutable borrow
+     47 |   println(r3);        # prints 2
+     48 |   r1 = invalid; r2 = invalid; r3 = invalid;
+     49 |   println(y);         # prints 2
+
+    Pointers and refereces can be converted to usize, but usize cannot be
+    converted to either a pointer or a reference. All casts are performed using
+    the identifier as type syntax. "as" is an operator and as such can be
+    defined using an implement block for the as interface. More on casts later.
+
+     50 |   var p5 *i32 = 42;   # Type error: Converting a number to a pointer
+     51 |                       # or reference is illegal
+     52 |   const NULL usize = 0;
+     52 |   var r5 ~i32 = NULL; # Type error: typeof(r5) != typeof(NULL),
+     53 |                       # ~i32, found usize
+     54 |   p1 = &x;
+     55 |   r1 = $y;
+     56 |   var x1 usize = p1 as usize;
+     57 |   var y1 usize = r1 as usize;
+
+Arrays:
+    Arrays store contiguous sequences of values of the same time. The basic
+    dynamic array type is an owning array. 
+
+    var array1 []u8 = ['H','e','l','l','o',' ','W','o','r','l','d','!'];
+    println(array1); # prints Hello World!
+
+    Pointers and references cannot borrow a region of an array. Instead mutable
+    and imutable slices are used. A pointer is to a mutable slice, as a
+    reference is to an imutable one. An additional stipulation is that no two
+    slice may borrow the same region of memory of an array. 
+
+      1 |   var  MS [*]u8 = &array1[0..5];    #mutably borrow the first 5
+      2 |   charachter of t1
+      3 |   var IS [~]u8 = $array1[5..];      #imutably borrows the remainging
+      4 |   charachters
+      5 |   
+      6 |   const m1 [*]u8 = &array1[0..2];   # borrow error: cannot mutably
+      7 |                                     # borrow region 0..2 of array1,
+      8 |                                     # since m1 is allready mutably
+      9 |                                     # borrowing the region 0..5 from
+     10 |                                     # array1 from array1
+     11 |   const i1 [~]u8 = $array1[5..];    # just fine
+     12 |   const i2 [~]u8 = $array[0..5];    # borrow error: cannot imutably
+     13 |                                     # borrow region 0..5 of array1,
+     14 |                                     # sincce n1 is allready mutably
+     15 |                                     # borrowing the region 0..5 from
+     16 |                                     # array1
+
+    Pointers and references in lang are capable of pointer arithmetic when they
+    are borrowing from a binding that is an array, or slice.
+    var array2 []u8 = "Hello World!" 
+    var letter *u8 = &array2[0];
+    letter += 1;
+    
+
+    #adding a number between the square braces reserves num * sizeof type bytes
+    var [100]u8 t3 = "Hello World!"
+    
+    var  mutableSlice [*]u8 = &t1[0..5]; #mutably borrow the first 5 charachter of t1
+    var imutableSlice [~]u8 = $t1[5..]; #imutably borrows the remainging charachters
+    #borrowing from the same array is possible so long as borrowed regions
+    #do not overlap
+
+    How []u8, [*]u8, and [~]u8 map to C
+    
+Branching conditions:
+    Lang provides if and match expressions for branching logic. Both if and match
+    can be used either as expressions or statements.
+    
+      1 |   if cond {
+      2 |      # branch followed if cond is true
+      3 |   } else {
+      4 |      # branch followed if cond is false
+      5 |   }
+      6 |   
+      7 |   match expr {
+      8 |       i32 x {
+      9 |          # branch followed if the expression results in an i32
+     10 |       }
+     11 |       10 {
+     12 |          # branch followed if the expression results in the value
+     13 |          # 10.
+     14 |       }
+     15 |          # If the expression evaluates to an i32 with the value 10, the
+     16 |          # branch that is more specific is followed. In this case 10 is
+     17 |          # more specific than something that is an i32
+     18 |   
+     19 |          # other cases here
+     20 |       _ {
+     21 |          # branch followed if all other cases don't match the
+     22 |          # input expression
+     23 |       }
+     24 |   }
+
+    Alternative to the '{' '}' block syntax there is also the yielding block syntax.
+    If a if expression or match case yields an expression it is possible to write
+
+     25 |   if cond: exprIfTrue else: exprIfFalse;
+     26 |   
+     27 |   match expr {
+     28 |   10: 15
+     29 |   _: unreachable
+     30 |   }
+
+    Like in C, '(' ')' can be wraped around a sequence of statements followed by a
+    final expression and the entire wraped '(' ')' block will evaluate to the last
+    expression. Note that an expression is a valid statement.
+
+     31 |   var i32 x = 10;
+     32 |   var i32 y = (println(x); x += 5; x * 10);
+     33 |                 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluates to x * 10
+     34 |   
+     35 |   println(x);   # prints 15
+     36 |   println(y);   # prints 150
+
+
+    This nicely resolves the danling else problem.
+
+     37 |   if cond: if cond: expr1 else: expr2;
+     38 |   
+     39 |   # is it:
+     40 |   if cond {
+     41 |       if cond {
+     42 |           yield expr1;
+     42 |       } else {
+     44 |           yield expr2;
+     45 |       }
+     46 |   }
+     47 |   
+     48 |   
+     49 |   # or:
+     50 |   if cond {
+     51 |       if cond {
+     52 |           yield expr1;
+     53 |       }
+     54 |   }  else {
+     55 |       yield expr2;
+     56 |   }
+
+    The answer is that lang prefers the first option, however to achieve the
+    second use the following syntax:
+
+     57 |   if cond: (if cond: expr1) else: expr2;
+
+Optionals:
+    In lang optionals are first class members. All bindings are non null by default,
+    they can be invalid however not null. To permit a type to be null use the '?' to
+    signify that the type is optional.
+
+    var x ?i32 = null; # x being assigned to x means that x has no value
+
+    # Lang has a capture syntax to capture the result of an expr, in general
+    # expr |name| will cause name to contain the side effect of the expression
+    # captures may only occur in non assignment contexts
+
+    # expr |name| where the expr results in an optional will cause name to
+    # be the unwraped version of that result. Only valid in the positive
+    # branch of an if expression
+    var y i32 = if x |u|: u else: unreachable;
+
+    # the above if expression is equivalent to
+    y = x orelse unreachable;
+
+    # the '.?' operator unwraps the binding it is applied to, if the binding
+    # was null the whole expression evaluates to null.
+    var z ?i32 = x.? + 10; #x.? + 10 evaluates to null
+
+    var w i32 = x.? + 10 orelse 15; #the orelse unwraps the result of the (x.? + 10) 
+    #to 15 due to the null
+    #desugars to
+    #var w i32 = if x |u|: u + 10 else: 15;
+
+    For lang's loop syntax inspiration is drawn from zig and the mine coding language.
+    Lang uses 3 keywords when refering to loops. This is done to create a seperation
+    of concerns instead of grouping all looping under a single general name. The for
+    keyword represent looping over a range of values or an array. The difference
+    between while and loop is that loop strongly implies a case where looping
+    forever is possible. While is guaranteed to evaluate a stoping condition once
+    per iteration where Loop has no such guarante.
+
+    //for loops operator on range expressions. A range can initialized with the '..'
+    //operator. 0..10 is the same thing as [0, 1, 2, ..., 9]. 0..=10 is the same thing
+    //as [0,1,2,...,10]. All arrays can be used as range expressions. The 'by'
+    //operator takes a subset of the range. Where 'by x' meaning starting at the first
+    //element of the inputed range take that element, move x elements to the right,
+    //take that element and repeat. 0..10 by 2 is the same thing as [0,2,4,6,8],
+    //if an array named arr is [10,4,2,3,5,11] then 'arr by 2' is [10,2,5]. Following
+    //the range expression is the capture. The first argument of the capture will be
+    //the value corresponding to the current iteration, the second argument coresponds
+    //to the iteration number. The second argument can be ommited. 0..10 by 2 |v, i|
+    //indicates that on the first iteration i = 0, and v = range[0] = 0, on the second
+    //i = 1, and v = range[1] = 2, the third i = 2 and v = range[2] = 4.
+
+    For loops iterate over range expressions. The by operator changes the stride
+    over the range. And the |v, i| captures the value and interation index.
+
+    # array declatation
+    var []i32 arr1 = [1, 1, 2, 3, 5, 8, 13, 21, 34];
+    
+    #         range expressions: (can be replaced by an array)
+    #                VVVVVV
+    var []i32 arr2 = 0..10 	        #[0,1,2,3,4,5,6,7,8,9]
+    var []i32 arr3 = 0..=10         #[0,1,2,3,4,5,6,7,8,9,10]
+    
+    var []i32 arr1by2 = arr1 by 2;  #[1,2,5,13,34]
+    var []i32 arr2by2 = arr2 by 2;  #[0,2,4,6,8]
+    var []i32 arr4 = 0..=10 by 2;   #[0,2,4,6,8,10]
+    
+    for 0..n {...}                  # loop n times
+    for 0..n |v| {...}              # with v capturing the value
+                                    # corresponding to the current iteration
+    for 0..n |v, i| {...} 		    # with i capturing the current iteration
+    # number
+    
+    for 0..n by x {...} 		    # loop a maximum of n times,
+                                    # incrementing by x every time
+    for 0..n by x |v| {...}		    # with v capturing the value
+                                    # corresponding to the current iteration
+    for 0..n by x |v, i| {...}	    # with i capturing the current iteration
+                                    # number
+    
+    for arr {...}            	    # loop n times, where n is the lenght of 
+                                    # the array
+    for arr |v| {...}       	    # v captures the value of the element
+                                    # corresponding to the current iteration
+    for arr |v, i| {...}     	    # with i capturing the iteration number
+    
+    for 0..arr.len |v| {...} 	    # where 0..arr.len declaring a range
+                                    # representing the indices of each
+                                    # position in the array
+    
+    for arr |&v| {...} 		        # mutably borrow each element in the
+                                    # array and drop at the end of the end
+                                    # of the current iteration
+    for arr |&v, i| {...}		    # with i capturing the current iteration
+                                    # number
+    for arr |$v| {...} 		        # imutably borrow each element in the
+                                    # array and drop at the end of the
+                                    # current iteration
+    for arr |$v, i| {...}		    # with i capturing the current iteration
+                                    # number
+    
+    while cond {...} 		        # loop until the condition evaluates to
+                                    # false
+    while cond, epxr {...} 		    # with an expression that is guaranteed
+                                    # to run at the end of each iteration
+    while cond, expr |v| {...}      # with v capturing the value of that
+                                    # expression from the last iteration,
+                                    # null on the first
+    while cond |c| {...}            # capturing on the condition is also possible
+    
+    
+    loop {...}			            # loop unconditionally
+    loop expr {}                    # with an expression that is guaranteed
+                                    # to run at the end each iteration
+    loop expr |v| {...}             # with v capturing the value of that
+                                    # expression from the last iteration,
+                                    # null on the first
+    
+Object orientation:
+    The object oritented programing paradigm is fundamentally flawed.
+          - Inheritance is irelevant
+            
+            Ineritance shoe horns programers into organizing state and behaviour
+            into rigid heirarchies. Applying category theory to the organization
+            of state and behaviour feels natural. Its comfortable to model
+            programs types in classification trees, where more specific types
+            inherit from more abstract ones.
+
+            However, inheritance breaks down when a concept doesn't cleanly fit
+            into a single categoy. For example diamond inheritance: If you want
+            some kind of BowSword should it inherit from Bow or Sword? Some
+            types may not belong to either branch, and multiple inheritance
+            introduces ambiguity.
+
+            Using inheritance also incurs technical debt. Changes to a base type
+            affects its derived types. This means that a small feature addition
+            might result in a large refactor of the inheritance hierachy.
+
+            Types should be coupled by their capabilities wrather than their
+            structure. Composition achieves this elegantly, complely eliminating
+            the need for inheritance. Composition defines has a relationships,
+            grouping state with the capabilities it has. A warrior does not need
+            to inherit from Sword or Armor; but instead it can have a Sword and
+            Armor and their associated functionalities contained in it;
+
+            Therefore lang does not use inheritance as a machanic fro code
+            reuse. Composition is always prefered to inheritance since
+            composition is stricly more powerfull than inheritance.
+
+          - Object-oriented encapsulation does not work
+
+            Object-oriented design commonly follows the pattern of hiding
+            internal state and exposing a public interface for interacting with
+            that state.
+
+            The purpose of this encapsulation is to protect invaraints by
+            ensuring that state can only be modified through controlled
+            operations. For example, a bank account might prevent its balance
+            from becoming invalid by preventing modifcations to its internal
+            fields.
+
+            However, encapsulation only restricts access to state because it
+            does not guarantee that the exposed interface cannot be used to
+            invalidate the hidden state. A poorly designed interface can still
+            violate invaraints, while a disciplined programer can maintain
+            invariants without requiring hidden state.
+
+            Encapsulation also encourages artificial abstractions. Programmars
+            start with a list of types and associated behaviour. As the program
+            grows additional types are introduced only to group or expose
+            behaviours, resulting in service, manager, controller, or "x-er"
+            type whose purpose is to operate on other object rather than to
+            represent meaningful concepts.
+
+            Like inheritance, encapsulation also created technical debt. Early
+            in development, programer hide state behind bariers to protect
+            invariant. However, as requirements change, the errected bariers can
+            become obstacles when new features require information that was
+            intentionally hidden. The original abstraction becomes diffiduclt to
+            modifty without break the design. Often times absence of structure
+            is better than bad structure.
+
+            Encapsulation should instead occur at the level of namespace,
+            packages, and modules. At that scale these orginization units can
+            expose a carefully designed interface while keeping implementation
+            details private. Unlike object-level encapsulation, module-level
+            encapsulation does not attempt to protect every piece of state from
+            every other piece of code. This allows internal implementation
+            details to change without affecting users of the module and the
+            avoidance of excessive fragmentation created by object-oriented
+            encapsulation.
+
+
+Functions:
+    FunctionDecl > "fn" ID FunctionSignature FunctionBody;
+    FunctionExpr > "fn" FunctionSignature FunctionBody;
+    FunctionSignature > Parameters ReturnTypeOpt;
+    Parameters > '(' ParameterListOpt;
+    ParameterListOpt > ParameterList | ')';
+    ParameterList > Parameter ParameterListTail;
+    ParameterListTail > ',' Parameter ParameterListTail | ')';
+    Parameter > Type ID;
+    ReturnTypeOpt > Type | EPSILON;
+    FunctionBody > expressionBlock | block;
+
+    # defining a function
+    fn foo(i32 x) i32: x + 1;
+    # defining a lambda
+    fn (i32 x) i32: x + 1;
+
+    Lang seperates the definition of state from the definition of behaviour.
+    Types define the structure, while modules define the operations and
+    interfaces associated with that data.
+
+    Unlike object-oriented languages, types do not own methods. Function are
+    independnet declaration which may operate on types. A function whose first
+    parameter is a value, pointer, or reference may be called using method
+    syntax. Method syntax is only syntactoc sigar and does not change the
+    function being called.
+
+    var x i32 = 0;
+    fn increment(num *i32): num += 1;
+
+    # These calls are equivalentant
+    increment(&x);
+    x.increment();
+
+    When resolving method syntax, Lang searches for a function matching the
+    method name in the namespace associated with the type of the first argument.
+
+    module i32 {
+        fn toString(num i32) [~]u8: "YAY!";
+    }
+
+    These calls are equivalent
+    i32.toString(x);
+    x.toString();
+
+    Functions declared in the local scope have priority over module methods.
+
+    {
+        fn toString(num i32) [~]u8: "Hello World!";
+        
+        println(toString(x));       # prints Hello World!
+                                    # because no other toString(num i32) [~]u8
+                                    # exists in this scope
+        println(x.toString());      # prints YAY!
+                                    # because the i32 module declares a
+                                    # toString(num i32) [~]u8 method for i32s
+        println(i32.toString(x));   # prints YAY!
+                                    # using the explicit name space
+    }
+
+    include i32.toString;
+
+    fn toString(num i32) [~]u8: "Hello World!"; # COMPILE ERROR
+                                                # the include is copying the
+                                                # declaration of the i32's
+                                                # toString function into the
+                                                # current namesspace
+
+Generics:
+
+    Generic constrains are resolved outside of the generic function's scope.
+    
+    # example1.lang
+    fn foo<T implements T>(value ~T) {
+        #  ^            ^         ^
+        #  |            |         |
+        #  foo's scope. |         foo's scope
+        #               searched for in the symbol table upwards of foo. Finds
+        #               value.doThing();
+    }
+    # fn foo<interface T>(value ~T) # equivalent signature
+    #        ^^^^^^^^^^^
+    #        semantic sugar for T implements T
+
+    interface T {
+        doThing fn();
+    }
+
+
+    struct Stack<T> {
+        buffer []T;
+        capacity = buffer.len;  # defining capacity as an alias for buffer.len
+                                # the rhs of an alias is not an expression but
+                                # an id chain
+                                # the thing that is being aliased must be
+                                # defined before hand
+        count usize;
+    }
+
+    module Stack {
+        fn create<T>(capacity usize) !Stack<T>: .{
+            .buffer = try Heap.alloc<T>(capacity),
+            .count = 0
+        };        
+        fn push<T>(*self, element T) !usize {
+            const index = self.count;
+            if index >= self.capacity {
+                const newCapacity = self.capacity * 2;
+
+                try Heap.realloc(&buffer, self.capacity * 2);
+            }
+
+            self.buffer[index] = element;
+            return index;
+        }
+        fn pop<T>(~self) T {
+            var element T = self.buffer[self.index];
+            self.index -= 1;
+            return element;
+        }
+    }
+
+    struct Arena<T> {
+        buffer []T;
+        count usize;
+    }
+    module Arena {
+        fn create<T>(buffer []T) Arena<T>: .{
+            .buffer = buffer,
+            .count = 0
+        };
+    }
+
+    struct DynamicArena<T> {
+        buffer []T;
+        count usize;
+    }
+    module DynamicArena {
+        fn create<T>(capacity) !DynamicArena<T>: .{
+            .buffer = try Heap.alloc<T>(capacity);
+            .count = 0;
+        };
+        fn grow(self) !{
+            try Heap.realloc<T>(&self.buffer, self.buffer.len * 2);
+        }
+    }
+
+    Allocators cannot be created using Heap.create<T>(arg1, arg2, ...);
+    structs or basic types can be created using Heap.create provided that there
+    namespace has a constructor
+Structs and modules:
+    A struct defines a product type. It contains only fields and defines the
+    layout of its data in memory. The seperation of representation and
+    behaviour into structs and modules respectivly improves organization and
+    increases readability.
+
+    struct Body {
+        health u32;
+        age u8;
+    }
+
+    struct Stats {
+        durability u8;
+        dammage i32;
+    }
+
+    struct Sword {
+        stats Stats;
+        holy bool;
+    }
+
+    struct Bow {
+        stats Stats;
+        arrows u8;
+    }
+
+    Modules define namespace. A module may contain functions, static state, type
+    declarations, interfaces, implemenations, enums, and an optional entry
+    point. A module with the same name as a struct defined the namespace
+    assoicated with that type.
+
+    module Body {
+        fn create() Body: .{
+            .health = 100,
+            .age = 18
+        }
+
+        fn ageUp(self) {
+            if self.health > 0: self.age += 1;
+        }
+    }
+
+Interfaces:
+
+    An interface defines a struct of function pointers.
+
+    interface Weapon {
+        useOn fn(*self, body *Body);
+    }
+
+    and is conceptually equivalent to a
+
+    struct Weapon {
+        self *void;
+        useOn fn(*void, *Body);
+    }
+
+    Defining an implemenation provides the function pointers required to construct
+    the interface value.
+
+    # helper function
+    inline fn useable(stats ~Stats, body ~Body) bool {
+        return stats.durability && body.health >= 0;
+    }
+
+    impl Weapon for Sword {
+        useOn = fn(*self, body *Body) {
+            if !useable(self.stats, body): return;
+            body.health -|= self.dammage * (2 * self.holy);
+            self.stats.durability -|= 1 * (2 * self.holy);
+        }
+    }
+
+    # you can also provide an implemenation as follows
+    module Bow {
+        impl Weapon {
+            useOn = fn(*self, body *Body) {
+                const outOfAmmow = !self.arrows;
+                if !useable(self.stats, body) || outOfAmmow: return;
+                body.health -|= self.stats.dammage;
+                self.arrows -|= 1;
+                elf.stats.durability -|= 1;
+            }
+        }
+    }
+
+Classes:
+
+    Lang does not have classes as a fundamental construct. A class-like design
+    is created thourgh the combination of a struct and a module. Pairing type
+    with namespace. The include keyword copies the declaration of a field or
+    function from another namespace into the current namespace. This allows
+    functionality to be composed in from fields or other modules.
+
+    struct Fighter {
+        body Body;
+        weapon Weapon;
+    }
+
+    module Fighter {
+        fn create(weapon Tool) Fighter:
+            .{
+                .body = Body.create(),
+                .weapon = weapon
+            };
+
+        fn fight(self *Fighter, enemy *Fighter) {
+            self.weapon.useOn(&enemy.body);
+        }
+
+        # we want to be able to call fighter.ageUp(); so we do:
+        include Body.ageUp(body) as ageUp; # currying Body.ageUp on body
+        # the above is equivalent to: include body.ageUp 
+
+        #include function(field, arg1 *Type)
+        #                 ^^^^^  ^^^^^^^^^^
+        #                 |      specifying the type tells the compiler that
+        #                 |      this is an arg to pass into the function
+        #                 the lack of a type means the compiler looks in the
+        #                 current module for the field
+
+        include weapon.useOn;
+        # is equivalent to:
+        # fn useOn(self, body *Body) {
+        #     self.weapon.useOn(body);
+        # }
+
+
+    }
+
+    # we are currently in fighters.lang which is technically a module so we can
+    # specify an entrypoint
+    entrypoint {
+        var sword = Sword {
+            .stats = {
+                .durability = 100,
+                .dammage = 10
+            },
+            .holy = true
+        }
+        var bow = Bow {
+            .stats {
+                .durability = 50,
+                .dammage = 8
+            },
+            .arrow = 100
+        }
+
+        var p1 = Fighter.create(sword);
+        #                       ^^^^^
+        #                       Tool is claiming ownership of sword and using
+        #                       the defined cast in the impl block
+        #                       similar 
+        #                       VVV
+    Like Zig, Lang treats allocators as first class citizens. Memory allocation
+    is not tied to a global heap or hidden runtime. An allocator is a value that
+    implements the Allocator interface, allowing different allocation strategies
+    to be interchanged.
+
+    An allocator defines how memory is created and destroyed. Types may define a
+    create(arg1, arg2, ...) Type function to initialize newly allocated values.
+    Types may optionally define a destroy(self) function to perform cleanup
+    before their memory is released.
+
+    Allocation uses the Allocator.create<Type>(arg1, arg2, ...) syntax. The
+    allocator reserves memory for Type and forwards the provided arguments to
+    Type's create function.
+
+    Destruction uses Allocator.destroy<Type>(value). This calls the type's
+    destructor if one exists and then releases the allocated memory.
+
+    include std.allocators.Heap as Heap;
+
+    var arena1 Arena<Fighter> = Heap.create<Arena<Fighter>>(1000);
+
+    # Type inference allows:
+    var arena2 = Heap.create<Arena<Fighter>>(1000);
+
+    # If the type is known, generic arguments may be inferred:
+    var arena3 Arena<Fighter> = Heap.create(1000);
+
+    var fighter1 = arena1.create(sword);
+
+    This is equivalent to allocating storage for Fighter using arena1 and
+    initializing it using Fighter.create(sword).
+
+    Unlike Zig, Lang integrates allocators with the ownership and lifetime
+    system. Every allocated value is associated with the lifetime of the
+    allocator that created it. When ownership of the value ends, the compiler
+    knows which allocator is responsible for releasing the memory.
+
+    Memory cannot outlive the allocator that created it.
+
+    var fighter2 Fighter;
+
+    {
+        var arena2 Arena<Fighter> = Heap.create(1000);
+        fighter2 = arena2.create(bow);
+    }
+
+    fighter1.fight(&fighter2); # borrow error: fighter2 is invalid        var p2 = Fighter.create(bow);
+        p1.fight(&p2);
+    }
+
+Enums:
+
+    Enums are lang's sum type. Lang does not have a unions because effectivly
+    all unions are tagged anyway. Enums are tagged unions. Enums have the
+    special property that they can be thrown as an error using the throw
+    keyword.
+
+    enum Token {
+        number i32;
+        identifier [~]u8;
+    }
+
+    enum FileError {
+        NotFound;
+        PermissionDenied;
+    }
+    
+    fn parse() FileError!Token {
+        match u8.rand() % 4 {
+            0: throw .NotFound,
+            1: throw .PermissionDenied,
+            2: return number(10),
+            3: return identifier("hehe")
+        };
+    }
+    fn lazyParse() !Token: return parse();
+
+    To call parse it is required to use propogation syntax.
+
+    const t1 = try parse(); # propogate the error
+    const t2 = parse() catch e { # handle the error
+        NotFound: println("bro that file doesn't exist");
+        PermissionDenied: println("find a file you have permission to read bozo");
+    }
+
+    Not all enums are error enums, however enums can be propogated through the
+    error channel.
+
+    An enum variant may be reinterpreted as another variant if and only if the
+    payload types have an identical memory layout.
+
+    Two types have an identical memory layout if
+
+        - They have the same size.
+        - They have the same alignment requirements.
+        - Their fields occupy the same byte offsets.
+        - Their fields have recursively identical memory layouts.
+
+    Reinterpretation changes only the active enum tag. The payload memory is not
+    modified or copied.
+
+    enum IPv4 {
+        value u32,
+        parts struct {
+            a u8,
+            b u8,
+            c u8,
+            d u8,
+        }
+    }
+
+    const ip = IPv4.value(0x7F000001);
+    const p = ip as IPv4.parts;
+    println("{p.a}.{p.b}.{p.c}.{p.d}");
+
+Importing:
+
+Constraints:
+
+    A constraint describes the requirements on a symbol before the symbol's
+    declaration has been encountered. All structs only contain fields required
+    by the constraints that affect that struct. For example,
+
+     1  import Math
+     2  var p Point = {.x = 42};
+     3
+     4  {
+     5      const x i32 = Math.add(0, 1);
+     6      var p Point = {.y = -10};
+     7  }
+     8
+     9  struct Point {
+    10      x i32; # required by line 2
+    11      y i32; # required by line 6
+    12  }
+
+    The use of Math.add imposes a constraint on math. It requires that Math has
+    a function named add with two parameters, the first parameter must accept 0,
+    and the second must accept 1, and be capable of returning an i32
+
+    Math
+    └── function "add"
+        ├── parameter 0: accepts 0
+        ├── parameter 1: accepts 1
+        └── return type: i32
+
+    Similarily, the initializer of p imposes a constrain on Point,
+
+    Point
+    └── field "y"
+        └── accepts -10
+
+    A constrain set is owned by its root constrain. Only the root constrain
+    needs to know the symbol it applies to; child constraints are reached
+    through the root.
+
+    Constrains are stored in the symbol table while their declaration has not
+    yet been encountered. When its declaration is finally encountered the
+    compiler verifies the constraints against the declaration and then the
+    restraints are discarded. Any broken constraints are raised as errors where
+    the constraint was created.
+
+    Constraints are scope aware. A constraint created in an inner scope does not
+    constrain the declaration shadowing the symbol in the inner scope. For
+    example,
+        
+      1 |   const p Point = {.x = 32, .y = -10};
+      2 |   
+      3 |   {
+      4 |       const p1 Point = {.z = 42};
+      5 |
+      6 |       struct Point {
+      7 |           z i32;  # required by line 4
+      8 |       }
+      9 |   }
+     10 |
+     11 |   struct Point {
+     12 |       x i32;      # required by line 1
+     13 |       y i32;      # required by line 1
+     14 |   }
+
+    The constrained imposed on the out Point do
+    not apply to the Point declared inside the inner scope. The inner
+    declaration shadows the outer Point.
+
+    When a scope closes, any unresolved constraints are transfered to an
+    appropriate enclosing scope. The compiler searches enclosing symbol table
+    for a matching sybmol,
+
+      - If no matching symbol exists, the contraint is propogated upward.
+      - If an identifier with the same name is found where a type/module.etc is
+        required, there is a conflict emit an error.
+      - If a matching declaration is found, its constraints are checked against
+        the declaration.
+
+    The constraint system allows declaration to appear after their uses. The
+    compile therefore does not need to process declaration strictly from top to
+    bottom. This does not however apply to binding declarations. A variable or
+    constant must always be declared before it is first used.
+
+    A resolved type is represented by its declaration AST, while an unresolved
+    type is represented by its outstanding constraints. Once the declaration is
+    found and the constraints are verified, the unresolved representation can be
+    replaced by the resolved representation.
+
+Allocators:
+
+    Like Zig, Lang treats allocators as first class citizens. Memory allocation
+    is not tied to a global heap or hidden runtime. An allocator is a value that
+    implements the Allocator interface, allowing different allocation strategies
+    to be interchanged.
+
+    An allocator defines how memory is created and destroyed. Types may define a
+    create(arg1, arg2, ...) type function to initialize newly allocated values.
+    Types may optionally define a destroy(self) function to perform cleanup
+    before their memory is released.
+
+    Allocation uses the Allocator.create<Type>(arg1, arg2, ...) syntax. The
+    allocator reserves memory for Type and forwards the provided arguments to
+    Type's create function.
+
+    Destruction uses Allocator.destroy<Type>(value). This calls the type's
+    destructor if one exists and then releases the allocated memory.
+
+    include std.allocators.Heap as Heap;
+
+    var arena1 Arena<Fighter> = Heap.create<Arena<Fighter>>(1000);
+
+    # Type inference allows:
+    var arena2 = Heap.create<Arena<Fighter>>(1000);
+
+    # If the type is known, generic arguments may be inferred:
+    var arena3 Arena<Fighter> = Heap.create(1000);
+
+    var fighter1 = arena1.create(sword);
+
+    This is equivalent to allocating storage for Fighter using arena1 and
+    initializing it using Fighter.create(sword).
+
+    Unlike Zig, Lang integrates allocators with the ownership and lifetime
+    system. Every allocated value is associated with the lifetime of the
+    allocator that created it. When ownership of the value ends, the compiler
+    knows which allocator is responsible for releasing the memory.
+
+    Memory cannot outlive the allocator that created it.
+
+    var fighter2 Fighter;
+
+    {
+        var arena2 Arena<Fighter> = Heap.create(1000);
+        fighter2 = arena2.create(bow);
+    }
+
+    fighter1.fight(&fighter2); # borrow error: fighter2 is invalid
+
+Entrypoints:
+
+    Lang is both a scripting language and a programing language. Arguably the
+    hello world program should be a single line. For this reason lang chooses to
+    treat the main.lang file as a script by decomposing it differently then
+    other file-modules. If no entrypoint is defined in the main.lang file, then
+    the content of the entire file is wraped in an entrypoint and execution
+    begins at the top of the file. No other file-module is decomposed this way.
+
+	# main.lang
+
+	const x i32 = 10;
+	const y u64 = 25;
+
+	print("hello world!\n");
+
+	print("look at me!\n");
+
+	# is equivalent to:
+	module Main {
+		entrypoint {
+			const x i32 = 10;
+			const y u64 = 25;
+
+			print("hello world!\n");
+
+			print("look at me!\n");
+		}
+	}
+
+Command Line Interface CLI:
+	The lang CLI is considered a first class citizen.
+
+	Module visibility
+
+	By default, every declaration in modules, structs, classes, enums, or
+	interfaces are private to its container. This does not provide object
+	oriented encapsulation. Instead when a field, or function is marked
+	expose it becomes available to include, or import from other structural
+	containers. imporing is similar to including except that it occurs
+	across files.
+
+	# math.lang
+		fn square(x i32) i32: x * x;
+
+		expose fn cube(x i32) i32: x * x * x;
+
+	In this example cube may be imported by other file-modules, while square
+	remanins an implementation detail. This make the public API of every
+	module explicit, preventing accidental imports.
+
+	# main.lang
+	import math
+
+	# cannot call math.square
+	println(math.cube(5))
+
+	All declaration reachable through the exposed surface of Main are
+	available through the CLI, including the surface of main that is
+	transitivly exposed. If an import is exposed then its exposed surface is
+	also exposed to the CLI.
+
+	# math.lang
+	expose fn add(a i32, b i32) i32: a + b;
+	expose fn sub(a i32, b i32) i32: a - b;
+	fn printSomeInfo(): print("Some info\n");
+
+	# main.lang
+	expose import math;
+
+	expose fn greet(name [~]u8) {
+		print("Hello {name}\n");
+	}
+
+	expose module makeSound {
+		expose fn woof(): print("WOOF!\n");
+		fn meow(): print("MEOW!\n");
+
+		entrypoint sound [~]u8 {
+			printf("{sound}\n);
+		}
+	}
+
+	print("Hello World!\n");
+
+	The compiler generates CLI commands corresponding the transitivly
+	exposed interface. Modules can act as namespaces for commands or be
+	called if they have a defined entrypoint. This allows the file system
+	and project structure to define the CLI hierarchy.
+
+	The CLI is composed recursively from modules.
+
+	A program is built by
+	Starting at Main.
+	Resolving exposed declarations.
+	Following exposed modules.
+	Generating the command tree.
+
+	No separate CLI definition file is required.
+
+	The above example generates the following commands
+
+	langc main.lang -o app
+	./app
+	Hello World!
+	./app math add 1 2
+	3
+	./app math sub 1 2
+	-1
+	./app math printSomeInfo
+	Usage error: printSomeInfo is not exposed in module math
+	./app grret Viffx
+	Hello Viffx!
+	./app makeSound woof
+	WOOF!
+	./app makeSound meow
+	Usage error: meow is not exposed in module makeSound
+	./app makeSound AHHHHHH!!!!
+	AHHHHHH!!!!

@@ -1,0 +1,14 @@
+Readable code can be optimized into fast code.
+Code is for humans first.
+Code should read like comments.
+Prefer simplicity over complexity.
+Prefer readability over cleverness.
+What is natural is correct.
+Organize code by concepts, not convenience.
+One function, one responsibility.
+A responsibilty may contain smaller responsibilities.
+Label sub responsibilities instead of extracting them.
+Never fear long functions.
+Abstract only to eliminate complexity.
+Extract concepts, not single lines of code.
+Do not prematurely optimze.

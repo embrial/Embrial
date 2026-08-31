@@ -1,0 +1,284 @@
+License:
+    2026 Viffx
+    This work is licensed under a Creative Commons Attribution 4.0 International
+    License.
+
+    You are free to share and adapt this specification for any purpose,
+    even commercially, as long as you give appropriate credit and provide a link
+    to the license.
+
+The lexer is controlled by the parser.
+    The parser decides what token types to try and recognize to avoid wasting
+    time and optimizing for branch predition.
+    Allows context sensitive parsing where the parser can ask for an identifier
+    instead of a keyword
+Logging should be seperate from the lexer
+    need to fix this
+I want the compiler to be able to output an anotated file with comments labeling
+all the errors
+
+Logging errors:
+      - error reporting should have serveral modes
+          - output only errors to the terminal
+          - add comments to a file, labeling all the errors
+
+            flag > '-' longOrShort files;
+            longOrShort > '-' long | short;
+            long > longOverwriteMode | longCopyMode;
+            longOverideMode > "Annotate";
+            longCopyMode > "annotate";
+            short > shortOverwriteMode | shortCopyMode;
+            shortOverwriteMode > "A";
+            shortCopyMode > "a";
+            files = (w+ )+;
+
+            If the first letter of the flag is a lowercase flag then all
+            comments added to label errors will be written to a file with the
+            same name as the file being parsed plus a copy number. 
+            
+                lang build -a main.lang
+                ls
+                main.lang main(1).lang
+                cat main.lang
+                constant x i32 = 10;
+                cat main(1).lang
+                constant x i32 = 10; # "constant" is not a valid keyword
+                #const x i32 = 10;   # did you mean "const"?
+
+            If the first letter of the flag is uppercase then the annotated
+            version of each file will overwrite that file.
+
+                lang build -A main.lang
+                ls
+                main.lang
+                cat main.lang
+                constant x i32 = 10; # "constant" is not a valid keyword
+                #const x i32 = 10;   # did you mean "const"?
+
+            if no files are written following the flag then every file is
+            selected
+        
+     1. errors may occur on the same line
+     2. the parser when parsing a statement imediatly recognizes that a type of
+        statement cannot occur in the current block type.
+          - can only inform the user after the entire statement has been
+            recognized. This may mean that the recognized statement has multiple
+            lines. One or more of those lines may have allready been printed if
+            they have errors in them in the naive approach.
+     3. parsing has multiple stages meaning that the tree has to be traversed
+        again meaning that errors appear out of order
+
+      - desirable to avoid printing the same line multiple times to highlight
+        that a single token is incorect
+      - desirable to print errors in the top to bottom order as they appears in
+        the source code
+
+    Storing errors, then sorting them when parsing finishes allows the second
+    requirement to be achieved. It also decreases coupling meaning that the
+    error formating technique can easily be switched in and out.
+
+Lexing:
+    Handles recovory
+
+    Lexer_currentChar       // return the charachter under the cursor
+    Lexer_advanceChar       // move the cursor one to the right
+    Lexer_consumeChar       // consumtion is store current then advance
+
+    Lexer_skipUntil         // advance the cursor until a specified characher is
+                            // found
+    Lexer_skipUntilNot      // advance the cursor until the charachter under the
+                            // cursor is not the same as a specified charachter
+    Lexer_skipUntilEither   // move the cursor to the right until either a
+                            // seperator or a delimeter is found
+
+    Lexer_commit            // sets the start of the window to the end of the
+                            // window
+    Lexer_rollback          // sets the end of the window to the start of the
+                            // window
+
+    Lexer_skipWhitespace    // skip white space until the cursor is at a non
+                            // white space charachter
+    Lexer_skipUntilSync     // advance the cursor until ';', '\n', or c, where c
+                            // is the current block delimeter.
+                            // returns an error if after skip non newline
+                            // whitespace we don't immediatly find a statement
+                            // terminator.
+                            // used for recovory???
+    Lexer_scanNumber
+    Lexer_scanSymbol
+    Lexer_scanIdentifier
+    Lexer_scanKeyword       // scans the input using scanIdentifier, then checks
+                            // that it is a valid keyword
+    Lexer_scanString
+    Lexer_scanIdentifier
+
+    I think that my most recent keyword recognition optimization is more of a
+    waste of memory then a memory speed up. However theoretically my lexer can
+    recognize that an identifier is a keyword in 40 nanoseconds
+
+Parsing:
+    Parsing has to iterate the AST atleast twice. This is due to the fact that
+    modules, structs, interfaces, enums, and functions can defined after they
+    are first used. Additionally everything that is included for a file is
+    effectivly declared at the end of the file. Therefore type information has
+    to collected and infered as much as possible during the first pass untill
+    the relevant module, struct, interface, enum, and function fits the ussage
+    contract of every previous ussage.
+
+    main.lang
+    |
+    V
+    Phase 1: semantic / type linking
+    |
+    |   toParse = [main.lang]
+    |   parsed  = []
+    |
+    |   while toParse is not empty:
+    |       file = pop(toParse)
+    |
+    |       phase1(file)
+    |       # resolves all internal type restraints, type inference, and type
+    |       # checking, resulting in a list of external type restraints
+    |
+    |       parsed.append(file)
+    |
+    |       for include in file.includes:
+    |           if include not in parsed
+    |              and include not in toParse:
+    |               toParse.append(include)
+    |
+    V
+    global symbol/type resolution constraints
+    |
+    |   # global semantic type resolution
+    |   for file in parsed:
+    |       file.verifyTypeRestraints(parsed)
+    V
+    Combined semantics model
+    |
+    V
+    Phase 2: combined ir generation
+    |
+    V
+    Optimization
+
+    The AST preserves the structure of the source.
+
+    struct Point {
+        x i32;
+        y i32;
+    }
+
+    const p Point = {.x = 32, .y = -10};
+
+    becomes:
+
+    STRUCT_DECL
+        name: "Point"
+        fields:
+            FIELD_DECL
+                name: "x"
+                type: i32
+
+            FIELD_DECL
+                name: "y"
+                type: i32
+
+    CONST_DECL
+        name: "p"
+        type: Point
+        initializer:
+            STRUCT_LITERAL
+                x → 32
+                y → -10
+
+    The AST doesn't need to answer "what does Point mean?" It just records that the source said Point.
+    
+language adds something C doesn't:
+
+const p Point = {.x = 32, .y = -10};
+const p1 Point = {.z = 42};
+
+
+struct Point {
+    x i32;
+    y i32;
+    z i32;
+}
+
+Before the struct declaration exists, you need somewhere to store:
+
+Point:
+    required fields:
+        x → capable of 32
+        y → capable of -10
+        z → capable of 42
+
+That is neither really AST nor ordinary symbol-table information.
+
+I'd put it in a semantic/type object associated with the symbol:
+
+Symbol
+  │
+  ├── name: Point
+  ├── declaration: NULL
+  │
+  └── type → StructType
+                │
+                └── requirements
+                     ├── x
+                     ├── y
+                     └── z
+
+Then when the declaration appears:
+
+Symbol
+  │
+  ├── declaration ─────→ AST_STRUCT_DECL
+  │                         ├── x i32
+  │                         ├── y i32
+  │                         └── z i32
+  │
+  └── type ────────────→ StructType
+                            ├── x → offset/type info
+                            ├── y → offset/type info
+                            └── z → offset/type info
+So I'd use three layers
+                    ┌──────────────┐
+source ────────────→│     AST      │
+                    │ what was said│
+                    └──────┬───────┘
+                           │
+                           │ declaration
+                           ▼
+                    ┌──────────────┐
+                    │    Symbol    │
+                    │ what names   │
+                    │ refer to     │
+                    └──────┬───────┘
+                           │
+                           │ type
+                           ▼
+                    ┌──────────────┐
+                    │     Type     │
+                    │ what it means│
+                    │ semantically │
+                    └──────────────┘
+    typedef struct {
+        SourceLocation location;
+
+        AstKind kind;
+
+        size_t childIndex;
+        size_t childCount;
+
+        union {
+            Literal *literal;
+            TokenType operator;
+        }
+        
+        Symbol *symbol;
+        Type *type;
+    } AstNode;
+
+
