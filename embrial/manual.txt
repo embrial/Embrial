@@ -1,0 +1,184 @@
+Table of contents:
+    Table of contents: .....................................................   1
+    License: ...............................................................  39
+    Introduction: ..........................................................  48
+    Notation: ..............................................................  59
+    Comments: ..............................................................  70
+    Tokens: ................................................................ 101
+    Statement terminators: ................................................. 102
+    Identifiers: ........................................................... 103
+    Operators and punctuation: ............................................. 104
+    Interger literals: ..................................................... 105
+    Floating pointer literals: ............................................. 106
+    Escape charachters: .................................................... 107
+    String literals: ....................................................... 108
+    Comments: .............................................................. 109
+    Bindings: .............................................................. 110
+    Variables: ............................................................. 111
+    Constants: ............................................................. 112
+    Ownership model: ....................................................... 113
+    Borrowing: ............................................................. 114
+    Arrays: ................................................................ 115
+    Slices: ................................................................ 116
+    Optionals: ............................................................. 117
+    Functions: ............................................................. 118
+    Structs: ............................................................... 119
+    Modules: ............................................................... 120
+    Enums: ................................................................. 121
+    Interfaces: ............................................................ 122
+    Generics: .............................................................. 123
+    Allocators: ............................................................ 124
+    Entrypoints: ........................................................... 125
+    Constraints: ........................................................... 126
+    Importing: ............................................................. 127
+    Command Line Interface CLI: ............................................ 128
+    Blocks: ................................................................ 129
+    Expressions: ........................................................... 130
+    Statements: ............................................................ 131
+
+License:
+    2026 VIFFX
+    This work is licensed under a Creative Commons Attribution 4.0 International
+    License. 
+
+    You are free to share and adapt this specification for any purpose, 
+    even commercially, as long as you give appropriate credit and provide a link
+    to the license.
+
+Introduction:
+    Welcome to the Embrial programming language. Ebl for short. Ebl is a
+    a statically, typed low-level programing language, designed around an
+    easy-to-read syntax that provides expressive, explicit, and memory-safe
+    code. Lux's type system controls data, through types, allocators, ownership
+    and borrowing through references. Lang treats the command line interface,
+    allocators, result types, optionals, and errors as first class citizens. Lux
+    is intended to be used for both general and systems programming, favouring
+    simple rules, predictable behaviour, and a small set of composable
+    primatives.
+
+Notation:
+    The syntax is specified using a variant of Backus-Naur form.
+
+    embrial/spec/notation.txt:
+       1 |  SYNTAX > Productions;
+       2 |  
+       3 |  EOF         > '\0';
+       4 |  CONTROL     > EOF | '\u0001' | '\u0002' | ... | '\u0037';
+       5 |  NEWLINE     > '\n';
+       6 |  
+       7 |  CHR_WHITESPACE  > '\n' | '\t' | ' ';
+       8 |  OR              > '|';
+       9 |  QUOTE           > '\'';
+      10 |  DOUBLE_QUOTE    > '"';
+      11 |  
+      12 |  SYM             > '!' | DOUBLE_QUOTE | '#' | ... | '/' | ':' | ';' |
+            '<' | ... | '@' | '[' | '\' | ']' | ... | QUOTE | '{' | OR | '}' | 
+            '~';
+      13 |  ALPHABETIC      > 'a' | 'b' | 'c' | ... | 'z' | 'A' | 'B' | 'C' | 
+            ... | 'Z';
+      14 |  NUMERIC         > '0' | '1' | '2' | ... | '9';
+      15 |  
+      16 |  EPSILON >;
+      17 |  ID      > ALPHABETIC lettersOpt | '_';
+      18 |      lettersOpt  > letters | EPSILON;
+      19 |      letters     > idValid lettersOpt;
+      20 |      idValid     > ALPHABETIC | NUMERIC | '_';
+      21 |  NUM     > NUMERIC numbersOpt;
+      22 |      numbersOpt  > numbers | EPSILON;
+      23 |      numbers     > numValid numbersOpt
+      24 |      numValid    > NUMERIC | '_';
+      25 |  
+      26 |  Productions > Production ProductionOpt;
+      27 |      Production > NonTerminal rhs;
+      28 |          NonTerminal > ID;
+      29 |          rhs > '>' expressionOpt;
+      30 |              expressionOpt   > expression | EPSILON;
+      31 |              expression      > Terminal expression | NonTerminals;
+      32 |                  Terminal        > symbol | keyword | "EPSILON" | 
+            "EOF" | "ID" | "SYM" | "NUM";
+      33 |                      symbol > QUOTE charachter QUOTE;
+      34 |                      charachter > '\' escaped | unescaped;
+      35 |                          escaped > '\''| '\\' | '\/' | 'b' | 'f' | 
+            'n' | 'r' | 't' | 'u' NUMERIC NUMERIC NUMERIC NUMERIC
+      36 |                          unescaped > SYM | ALPHABETIC | NUMERIC;
+      37 |  
+      38 |                  NonTerminals    > ';' | NonTerminal NonTerminals;
+      39 |      ProductionOpt > whitespace Productions | EOF;
+      40 |          whitespace  > CHR_WHITESPACE whitespace | '#' commentBody 
+            whitespace | EPSILON;
+      41 |          commentBody > commentable commentOpt;
+      42 |              commentable > SYM | ALPHABETIC | NUMERC | '\t' | ' ';
+      43 |              commentOpt > '\n' whitespace | commentBody
+
+    Productions are expression constructed from terms and alternation operators
+    '|'. Terminals can be symbol, keyword, or one of the 5 basic classification
+    EPSIOLON, EOF, ID, and NUM which refers to the once declared in the grammar.
+    Symbols are any single charachter that are non alhpa numeric. Keywords are
+    the set of all identifiers such as "name" defined in the grammar.
+
+Comments:
+    Comments are used to document programs. Embrial programs are self
+    documenting based on where comment occur. Embrial has a single form of
+    comment, begining with a hashtag '#', followed by an arbitrary sequence of
+    charachters, ending with a newline charachter '\n'.
+
+    embrial/spec/comments.txt:
+       1 |  # this is a comment
+
+    Comments may occur only at the end of a line. Nested comments are impossible
+    considering that every charachter between the first '#' on a line, until the
+    newline at the end of the line is comment, meaning that any '#' enclosed in
+    that region is a commented charachter.
+
+    A block comment is considered to be 1 or more comments that are writen
+    sequentially with only whitespace between comments. Comments on sequential
+    lines are logically concatonated by striping leading whitespace of every
+    line of the block comment then concatonating. Bellow are two equivalent
+    comments,
+
+       4 |  # this is a 
+       5 |      #    comment
+       6 |  
+       7 |  # this is a comment
+
+    Note that the whitespace at the end of a comment is not trimmed. The first
+    above comment ends with a single space charachter. Escape sequence are also
+    processed,
+
+      10 |  # comment with\na newline
+
+    When printed would display as,
+    comment with
+    a newline
+
+Tokens:
+Statement terminators:
+Identifiers:
+Operators and punctuation:
+Interger literals:
+Floating pointer literals:
+Escape charachters:
+String literals:
+Comments:
+Bindings:
+Variables:
+Constants:
+Ownership model:
+Borrowing:
+Arrays:
+Slices:
+Optionals:
+Functions:
+Structs:
+Modules:
+Enums:
+Interfaces:
+Generics:
+Allocators:
+Entrypoints:
+Constraints:
+Importing:
+Command Line Interface CLI:
+Blocks:
+Expressions:
+Statements:

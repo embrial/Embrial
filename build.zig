@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{
         .default_target = .{
             .cpu_arch = .x86_64,
@@ -12,6 +12,24 @@ pub fn build(b: *std.Build) void {
         },
     });
     const optimize = b.standardOptimizeOption(.{});
+
+    // Spec formating:
+    const specFormater = b.addExecutable(.{
+        .name = "recalculate-spec-formating",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("specFormater.zig"),
+            .target = target,
+            .optimize = .Debug,
+        }),
+    });
+
+    const runSpecFormater = b.addRunArtifact(specFormater);
+
+    _ = try runSpecFormater.step.addDirectoryWatchInput(b.path("Embrial/spec"));
+
+    const specStep = b.step("spec", "Recalculate the specification");
+    specStep.dependOn(&runSpecFormater.step);
+    b.default_step.dependOn(specStep); // run specFormater by default
 
     // Compilers:
     const exe = b.addExecutable(.{
@@ -81,3 +99,4 @@ pub fn build(b: *std.Build) void {
    const test_cmd = b.addRunArtifact(tests);
    test_step.dependOn(&test_cmd.step);
 }
+
