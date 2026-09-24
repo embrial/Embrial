@@ -25,11 +25,10 @@ pub fn build(b: *std.Build) !void {
 
     const runSpecFormater = b.addRunArtifact(specFormater);
 
-    _ = try runSpecFormater.step.addDirectoryWatchInput(b.path("Embrial/spec"));
+    _ = try runSpecFormater.step.addDirectoryWatchInput(b.path("spec"));
 
     const specStep = b.step("spec", "Recalculate the specification");
     specStep.dependOn(&runSpecFormater.step);
-    b.default_step.dependOn(specStep); // run specFormater by default
 
     // Compilers:
     const exe = b.addExecutable(.{

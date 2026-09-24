@@ -1,0 +1,18 @@
+var x i32 = 0;
+
+var r1 ~i32 = $x;
+var r2 ~i32 = $x; # multiple mutable borrows is fine
+var p1 *i32 = &x; # borrow error, r1 already immutably borrowing x
+
+var r3 ~i32 = r1; # copy r1 to r3
+var p2 *i32 = r1; # cannot assign from immutable reference to mutable reference
+
+x = 1; # borrow error
+r1.* = 2; # error, cannot assign through dereference of immutable borrow
+
+
+println(x); # borrow error
+            # if r went out of scope on line 6, would print 0
+println(r1.*); # prints 0
+println(r2.*); # prints 0
+println(r3.*); # prints 0

@@ -1,0 +1,52 @@
+SYNTAX > Productions;
+
+EOF         > '\0';
+CONTROL     > EOF | '\u000001' | '\u000002' | ... | '\u000037';
+NEWLINE     > '\n';
+
+CHR_WHITESPACE  > '\n' | '\t' | ' ';
+OR              > '|';
+QUOTE           > '\'';
+DOUBLE_QUOTE    > '"';
+IS_DEFINED_AS   > '>';
+
+SYM             > '!' | DOUBLE_QUOTE | '#' | ... | '/' | ':' | ';' | '<' | ... | '@' | '[' | '\' | ']' | ... | QUOTE | '{' | OR | '}' | '~';
+ALPHABETIC      > 'a' | 'b' | 'c' | ... | 'z' | 'A' | 'B' | 'C' | ... | 'Z';
+NUMERIC         > '0' | '1' | '2' | ... | '9';
+HEXADECIMAL     > NUMERIC | 'a' | ... | 'f' | 'A' | ... | 'F';
+
+EPSILON >;
+ID      > ALPHABETIC lettersOpt | '_';
+    lettersOpt  > letters | EPSILON;
+    letters     > idValid lettersOpt;
+    idValid     > ALPHABETIC | NUMERIC | '_';
+NUM     > NUMERIC numbersOpt;
+    numbersOpt  > numbers | EPSILON;
+    numbers     > numValid numbersOpt
+    numValid    > NUMERIC | '_';
+
+Productions > Production ProductionOpt;
+    Production > ID IS_DEFINED_AS expressionsOpt;
+    expressionsOpt > ';' | expressions;
+    expressions > expressions1 | expressions2;
+        expressions1 > Terminal caseHandler1;
+            Terminal        > symbol | keyword | "EPSILON" | "EOF" | "ID" | "SYM" | "NUM";
+                symbol > QUOTE character QUOTE;
+                character > '\' escaped | unescaped;
+                    escaped > '\''| '\\' | '\/' | 'b' | 'f' | 'n' | 'r' | 't' | 'u' HEXADECIMAL HEXADECIMAL HEXADECIMAL HEXADECIMAL HEXADECIMAL HEXADECIMAL;
+                    unescaped > SYM | ALPHABETIC | NUMERIC;
+
+                keyword > DOUBLE_QUOTE ID DOUBLE_QUOTE;
+
+        caseHandler1 > ';' | OR range1 | expressions;
+        range1 > '.' '.' '.' orOpt | expressions;
+        orOpt > ';' | OR expressions;
+
+        expressions2 > ID caseHandler2;
+        caseHandler2 > ';' | OR expressions | expressions2;
+    
+    ProductionOpt > whitespace Productions | EOF;
+        whitespace  > CHR_WHITESPACE whitespace | '#' commentBody whitespace | EPSILON;
+        commentBody > commentable commentOpt;
+            commentable > SYM | ALPHABETIC | NUMERIC | '\t' | ' ';
+            commentOpt > '\n' whitespace | commentBody;

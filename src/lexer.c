@@ -16,6 +16,7 @@ Todo:
     approach
 
 */
+
 #include <time.h>
 #include <stdio.h>
 #include <errno.h>
@@ -41,6 +42,7 @@ bool isHex(char c) {
     return isDigit(c) || isAlphaHex(c);
 }
 
+/*
 // Keyword table definition:
 U64 seed = 0x123456789ABCDEFULL;
 
@@ -52,6 +54,7 @@ typedef struct {
 } KeywordTable;
 
 KeywordTable keywordTable;
+*/
 
 // SourceLocation definition:
 typedef struct {
@@ -96,6 +99,7 @@ void Lexer_free(Lexer* self) {
 
 void Lexer_commit(Lexer* self) {
     self->cursorStart = self->cursorEnd;
+    Lexer_skipWhitespace(self);
 }
 void Lexer_rollback(Lexer* self) {
     self->cursorEnd = self->cursorStart;
@@ -406,7 +410,8 @@ void Lexer_skipUntilSync(Lexer *self, char c) {
 }
 void Lexer_skipUntilStringRelevant(Lexer *self);
 
-static inline U64 keywordInBase26_pack10(const char *keyword) {
+/*
+static inline U64 keVywordInBase26_pack10(const char *keyword) {
     U64 result = 0;
 
     for (size_t i = 0; i < 10 && keyword[i]; ++i) {
@@ -564,6 +569,7 @@ bool KeywordTable_init(void) {
 
     return true;
 }
+*/
 
 // token scaning:
 // recognizeHexidecimal:
@@ -819,7 +825,8 @@ bool Lexer_scanSymbol(Lexer *self) {
                 c = Lexer_currentChar(self);
                 if (c == '=') {
                     self->cursorEnd += 1;
-                    self->tokenType = TERMINAL_INCLUSIVE_RANGE;                    break;
+                    self->tokenType = TERMINAL_INCLUSIVE_RANGE;
+                    break;
                 }
             }
             self->tokenType = TERMINAL_DOT;

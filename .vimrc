@@ -1,3 +1,5 @@
+ProjectName Embrial
+
 " Language-agnostic TOC generator with smart navigation and safe updates.
 " Save this as lang_toc.vim and :source it.
 

@@ -1,0 +1,323 @@
+Table of contents:
+    Table of contents: .....................................................   1
+    AI Assistance Disclosure: ..............................................  38
+    License: ...............................................................  44
+    Introduction: ..........................................................  53
+    Notation: ..............................................................  64
+    Source code representation: ............................................  94
+    Characters: ............................................................ 110
+    Comments: .............................................................. 112
+    Keywords: .............................................................. 143
+    Operators and punctuation: ............................................. 146
+    Integer literals: ...................................................... 177
+    Floating point literals: ............................................... 180
+    Memory model: .......................................................... 183
+    Bindings: .............................................................. 205
+    Reference types: ....................................................... 235
+    Owning types: .......................................................... 253
+    Non owning types: ...................................................... 277
+    Mutable references: .................................................... 286
+    Immutable references: .................................................. 297
+    Slices: ................................................................ 308
+    Optionals: ............................................................. 309
+    Functions: ............................................................. 310
+    Structs: ............................................................... 311
+    Modules: ............................................................... 312
+    Enums: ................................................................. 313
+    Interfaces: ............................................................ 314
+    Generics: .............................................................. 315
+    Allocators: ............................................................ 316
+    Entry points: .......................................................... 317
+    Constraints: ........................................................... 318
+    Importing: ............................................................. 319
+    Command Line Interface CLI: ............................................ 320
+    Blocks: ................................................................ 321
+    Expressions: ........................................................... 322
+    Statements: ............................................................ 323
+
+AI Assistance Disclosure:
+    This language specification was written with AI assistance from ChatGPT and
+    Gemini. All ideas, and concepts are human generated. All text was written by
+    hand, edited by AI for clarity, tone, and spelling, then edited again to
+    reduce AI's typical forced style of writing.
+
+License:
+    2026 VIFFX
+    This work is licensed under a Creative Commons Attribution 4.0 International
+    License. 
+
+    You are free to share and adapt this specification for any purpose, 
+    even commercially, as long as you give appropriate credit and provide a link
+    to the license.
+
+Introduction:
+    Welcome to the Embrial programming language. Ebl for short. Ebl is a
+    statically, typed low-level programming language, designed around an
+    easy-to-read syntax that provides expressive, explicit, and memory-safe
+    code. Embrial's type system controls data, through types, allocators,
+    ownership and borrowing through references. Lang treats the command line
+    interface, allocators, result types, optionals, and errors as first class
+    citizens.  Embrial is intended to be used for both general and systems
+    programming, favoring simple rules, predictable behavior, and a small set of
+    composable primitives. 
+
+Notation:
+    The syntax is specified using a variant of Backus-Naur form.
+
+    #block spec/notation.txt
+
+    Despite the complexity of the above grammar the premise is simple. All right
+    hand sides of every production must not have a terminal to the right of any
+    non terminal in a given right hand side. Terminals first followed by non
+    terminals.
+    
+    #     ,----------,-----------,--- keyword are a type of terminal
+    #     |          |           |
+    #     V          V           V
+    lhs > "terminal1" "terminal2" "etc" nonTerminal1 nonTerminal2 etc;
+
+    As a short hand to manually enumerating every right hand side between say
+    the terminal 'a' and the terminal 'z' simple write 'a' | ... | 'z'.
+
+    lhs2 > 'a' | ... | 'z';
+    lhs3 > 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l'
+    | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' |
+    'y'| 'z';
+
+    lhs2 and lhs3 are logically equivalent. 
+
+    towerOfBabel > '\0' | ... | '\u999999' '\u999999' '\u999999' \'u999999';
+
+    The above production enumerate every possible UTF-8 encoded string that is
+    less than 5 characters.
+
+Source code representation:
+    Source code is Unicode text encoded in UTF-8. Source code other than
+    identifiers are not canonicalized meaning that a single accented code point
+    is distinct from the same glyph constructed from combining the code point
+    for the accent and the letter. Hence forth, a single Unicode code point will
+    be referred to as a character. It is an error if the file is not valid
+    UTF-8.
+
+    The compiler may disallow the NULL character '\u000000' or may ignore
+    '\u00FEFF' in the source text. The byte order mark will be removed if it is
+    the first character of the source code.
+
+    In Embrial identifiers are canonicalized using Unicode Normalization Form
+    C, (NFC). Thus two identifiers are identical if their normalized forms are
+    identical regardless of their original code point sequences. 
+
+Characters:
+
+Comments:
+    Comments are used to document programs. Embrial programs are self
+    documenting based on where comment occur. Embrial has a single form of
+    comment, beginning with a hashtag '#', followed by an arbitrary sequence of
+    characters, ending with a newline character '\n'.
+
+    #block spec/comments.txt
+
+    Comments may occur only at the end of a line. Nested comments are impossible
+    considering that every character between the first '#' on a line, until the
+    newline at the end of the line is comment, meaning that any '#' enclosed in
+    that region is a commented character.
+
+    A block comment is considered to be 1 or more comments that are written
+    sequentially with only whitespace between comments. Comments on sequential
+    lines are logically --> [Quit Loop] by striping leading --> [Quit Loop] of every
+    line of the block comment then --> [Quit Loop]. Bellow are two equivalent
+    comments,
+
+    #block
+
+    Note that the --> [Quit Loop] at the end of a comment is not trimmed. The first
+    above comment ends with a single space character. Escape sequence are also
+    processed,
+
+    #block
+
+    When printed would display as,
+    comment with
+    a newline
+
+Keywords:
+    #keywords
+
+Operators and punctuation:
+    Basic  Wrapping  Saturating  Assigning  Wrapping   Saturating
+    +       +%       +|          +=          +%=       +|=
+    -      -%        -|          -=          -%=       -|=
+    *      *%        *|          *=          *%=       %|=
+    /                            /=                       
+    //                           //=
+    %                            %=                       
+    <<              <<|         <<=                   >>|=
+    >>              >>|         >>=                   >>|=
+
+    Bitwise  Logical  Bitwise assigning
+    &         &&       &=
+    |         ||       |=
+    ^                  ^=
+    !
+
+    Braces
+    (   )
+    [   ]
+    {   }
+
+    Dot  Exclusive  Inclusive  Vararg
+    .    ..         ..=        ...
+
+    Reference  Reference To  Allocation  Single Expression Block
+    ~          $             @           :
+
+    Misc
+    ,   ;
+
+Integer literals:
+    #block spec/numericLiterals.txt
+
+Floating point literals:
+    #block
+
+Memory model:
+    Embrial uses an ownership and borrowing memory model to directly access
+    memory while preserving memory safety. All data in Embrial has exactly one
+    owner. When an owning value goes out of scope, the memory associated with
+    the owned allocation is released. Embrial uses mostly copy semantics,
+    reserving move semantics for assignments involving owned types, and mutable
+    references.
+
+    Borrowing using mutable or immutable references, allow data to be accessed
+    without copying data, or moving ownership. The borrow checker prevents a
+    whole class of memory-safety errors by enforcing 2 rules. First, a piece of
+    data may have either one mutable reference or multiple immutable references
+    borrowing from it, but not both at the same time. Secondly, a reference
+    cannot outlive the data from which it is is borrowing.
+
+    Embrial's memory model is designed around the pattern of copy semantics,
+    while supporting move semantics where they are beneficial. The type system
+    makes move semantics explicit for allocated types, and mutable references.
+    Together, the type system and borrow checker can prevent invalid memory
+    access, while allowing the compiler to determine when to safely release
+    allocated memory.
+
+Bindings:
+    A binding is an association between a name and data. Bindings are either
+    mutable or immutable. Mutable and immutable bindings are called variables,
+    and constants respectively. To declare a binding, first write the mutability,
+    followed by its type and name.
+
+    #block spec/bindings.txt
+
+    Declaring variable and constants follow C-style scoping rules. Two bindings
+    with the same name cannot be defined in the same scope.
+
+    #block
+
+    A binding may be declared without being initialized. Any uninitialized
+    binding is considered invalid until it assigned a value. Reading from an
+    invalid binding is a compile-time error.
+
+    #block
+
+    After a binding has been initialized, if it is mutable, then it can be
+    assigned a new value. Otherwise if a binding is immutable, then any
+    additional assignments after the initialization will result in a
+    compile-time error.
+
+    #block
+
+    A binding can be declared and initialized in one line as follows,
+
+    #block
+    
+Reference types:
+    Traditional pointer types have too many responsibilities. A pointer may own
+    an allocation, borrow an object, permit mutation, permit reads, represent
+    the absence of a value, or point to an array. Embrial divides these
+    responsibilities into several unique types.
+
+    Reference types are types whose values contain the address of another value.
+    Embrial references are non-null and do not implicitly dereference their
+    target. A reference is dereferenced explicitly using the .* operator. If a
+    nullable reference is required, a reference can be combined with the
+    optional type '?'. 
+
+    No reference type can outlive the lifetime of the memory to which it refers.
+    See [Life times] for more details. Brief, if an owning type has a longer
+    life time then its allocator, or a borrow type has a longer life time then
+    the binding from which it borrows, then it is invalidated after the shorter
+    life time ends.
+
+Owning types:
+    Embrial uses the owning reference type '@T' to represent exclusive ownership
+    of memory allocated for an instance of type 'T'. The owning type modifier
+    '@' indicates that the binding owns the memory referenced by the address
+    that the binding's value represents. A binding whose type is an owning type
+    is referred to as an owning binding. When a valid owning binding goes out of
+    scope, the owned memory is released.
+
+    Below 'Heap.create<i32>(0)' is used to allocate an 'i32' on the heap and
+    initialize it with the value '0'. See [Functions], [Modules], [Generics],
+    and [Allocators] for more details.
+
+    #block spec/ownedTypes.txt
+
+    When an owning binding is assigned to another owning binding, ownership of
+    the allocated memory is moved. Moving ownership first deallocates any memory
+    owned by the target binding, then the reference contained in the source
+    binding is copied to the target binding, lastly the source binding is
+    invalidated. If the s The source binding must not be used until it is
+    assigned a new value. A constant binding that has been invalidated cannot be
+    assigned a new value.
+
+    #block
+
+Non owning types:
+    Non-owning references provide access to memory without transferring
+    ownership of the referenced memory. In order to ensure that a value cannot
+    be modified while simultaneously being read by another reference, Embrial
+    separates non-owning reference into two mutually exclusive reference types,
+    mutable references, and immutable references. At any given time, a binding's
+    memory can either be borrowed by a single mutable reference or by multiple
+    immutable references but not both at the same time.
+
+Mutable references:
+    To specify that binding's type is a mutable reference to a type 'T', use the
+    mutable reference modifier '*' in prefix before type '*T'. As stated
+    above a mutable reference does not own the underlying memory of the data it
+    refers to. Instead it borrows access to the memory, and permits both reading
+    and writing to the data through the mutable reference. To create a mutable
+    reference to a binding x, use the get mutable reference operator '&' in
+    prefix before the binding's name `&x`.
+
+    #block spec/mutableReferences.txt
+
+Immutable references:
+    To specify that binding's type is an immutable reference to a type 'T', use
+    the immutable reference modifier '~' in prefix before type '~T'. As stated
+    above an immutable reference does not own the underlying memory of the data
+    it refers to. Instead it borrows access to the memory, and permits both
+    reading and writing to the data through the immutable reference. To create
+    an mutable reference to a binding x, use the get immutable reference
+    operator '$' in prefix before the binding's name `$x`.
+
+    #block spec/immutableReferences.txt
+
+Slices:
+Optionals:
+Functions:
+Structs:
+Modules:
+Enums:
+Interfaces:
+Generics:
+Allocators:
+Entry points:
+Constraints:
+Importing:
+Command Line Interface CLI:
+Blocks:
+Expressions:
+Statements:

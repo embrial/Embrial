@@ -1,9 +1,9 @@
 const std = @import("std");
 
 pub fn main() !void {
-    recalculateSpec("embrial/spec/format.txt") catch |e| switch (e) {
+    recalculateSpec("spec/format.txt") catch |e| switch (e) {
         error.FileNotFound => {
-            std.debug.print("Warning: embrial/spec/format.txt not found\n", .{});
+            std.debug.print("Warning: spec/format.txt not found: {}\n", .{e});
         },
         else => return e,
     };
@@ -32,7 +32,8 @@ const DirectiveKind = enum {
     NONE,
     BLOCK,
     INCLUDE,
-    KEYWORDS
+    KEYWORDS,
+    KEYWORD,
 };
 const Directive = struct {
     kind: DirectiveKind,
@@ -66,21 +67,12 @@ fn recalculateSpec(directory: []const u8) !void {
     var specReader = spec.reader(&buffer);
     var reader = &specReader.interface;
 
+    // discover directives:
     while (reader.takeDelimiter('\n')) |maybeLine| {
         const line = maybeLine orelse break;
         lineNumber += 1;
         const noCharachterReturn = std.mem.trimRight(u8, line, "\r");
         const cleanLine = std.mem.trimLeft(u8, noCharachterReturn, " \t");
-
-        if (std.mem.startsWith(u8, cleanLine, "#keyword")) {
-            const payload = std.mem.trimLeft(u8, cleanLine[8..], " \t");
-
-            const permanentCopy = try allocator.dupe(u8, payload);
-            try keywords.append(arena.allocator(), permanentCopy);
-
-            _ = try reader.takeByte();
-            continue;
-        }
 
         const originalAddress = @intFromPtr(noCharachterReturn.ptr);
         const trimmedAddress = @intFromPtr(cleanLine.ptr);
@@ -99,9 +91,18 @@ fn recalculateSpec(directory: []const u8) !void {
         } else if (std.mem.startsWith(u8, cleanLine, "#keywords")) {
             directive.kind = .KEYWORDS;
             directive.filepath = cleanLine[9..];
+        } else if (std.mem.startsWith(u8, cleanLine, "#keyword")) {
+            std.debug.print("DETECTED   DIRECTIVE on line {d: >8}: {s}\n", .{lineNumber, cleanLine});
+
+            const permanentCopy = try allocator.dupe(u8, cleanLine[9..]);
+            try keywords.append(arena.allocator(), permanentCopy);
+
+            directive.kind = .KEYWORD;
+            try directives.append(arena.allocator(), directive);
+            continue;
         } else continue;
 
-        std.debug.print("DETECTED   DIRECTIVE on line {}: [{s}]\n", .{lineNumber, line});
+        std.debug.print("DETECTED   DIRECTIVE on line {d: >8}: {s}\n", .{lineNumber, cleanLine});
         const filepath = std.mem.trimLeft(u8, directive.filepath, " \t");
         directive.filepath = try allocator.dupe(u8, filepath);
 
@@ -111,12 +112,13 @@ fn recalculateSpec(directory: []const u8) !void {
         if (err != error.EndOfStream) return err;
     }
 
+    // calculate word square for keywords:
     std.mem.sort([]const u8, keywords.items, {}, asciiLessThan);
 
     const keywords_len = keywords.items.len;
     var columnCount = std.math.sqrt(keywords_len);
 
-    var lineCount = if (columnCount > 0) keywords_len / columnCount else 0;
+    var lineCount = if (columnCount > 0) (keywords_len + columnCount - 1) / columnCount else 0;
     var totalWidth: usize = 0;
 
     var columns: []usize = try allocator.alloc(usize, columnCount);
@@ -138,7 +140,7 @@ fn recalculateSpec(directory: []const u8) !void {
 
                 if (keywordLen > widestInColumn) widestInColumn = keywordLen;
             }
-            columns[i] = widestInColumn;
+            columns[i] = totalWidth;
             totalWidth += widestInColumn;
         }
         if (totalWidth < 80) break;
@@ -146,17 +148,17 @@ fn recalculateSpec(directory: []const u8) !void {
         if (columnCount > 0) lineCount = (keywords_len + columnCount - 1) / columnCount;
     }
 
-    const wordSquareBufferCapacity = totalWidth * lineCount + lineCount;
-    if (columnCount > 0) {
-        for (1..columns.len) |i| {
-            columns[i] += columns[i - 1] + 2;
-        }
-    }
+    const rowWidth = totalWidth;
+    const rowStride = rowWidth + 1;
+    const wordSquareBufferCapacity = rowStride * lineCount;
 
     var wordSquareBuffer: []u8 = try allocator.alloc(u8, wordSquareBufferCapacity);
-    @memset(wordSquareBuffer, 0);
+    @memset(wordSquareBuffer, 0x20);
 
     if (columnCount > 0) {
+        for (0..lineCount) |i| {
+            wordSquareBuffer[i * rowStride + rowWidth] = '\n';
+        }
         for (0..columnCount) |i| {
             const offset = lineCount * i;
             const elementsInColumn = keywords_len - offset;
@@ -167,13 +169,14 @@ fn recalculateSpec(directory: []const u8) !void {
 
             for (0..loopLimit) |j| {
                 const keyword = keywords.items[offset + j];
-                const index = totalWidth * j + col;
+                const index = rowStride * j + col;
                 const destSlice = wordSquareBuffer[index .. index + keyword.len];
                 @memcpy(destSlice, keyword);
-                wordSquareBuffer[totalWidth * j] = '\n';
             }
         }
     }
+
+    std.debug.print("GENERATED KEYWORD TABLE:\n{s}", .{wordSquareBuffer});
 
     // output the result of processing all the directives
     try spec.seekTo(0);
@@ -181,7 +184,7 @@ fn recalculateSpec(directory: []const u8) !void {
     specReader = spec.reader(&buffer);
     reader = &specReader.interface;
 
-    const manual = try std.fs.cwd().createFile("embrial/manual.txt", .{});
+    const manual = try std.fs.cwd().createFile("manual.txt", .{});
     defer manual.close();
 
     var manualFileWriterIdk = manual.writer(&.{});
@@ -209,7 +212,10 @@ fn recalculateSpec(directory: []const u8) !void {
             try manualFileWriter.writeAll("\n");
             continue;
         }
-        std.debug.print("PROCESSING DIRECTIVE on line {}: [{s}]\n", .{lineNumber, line});
+
+        if (directive.kind != .KEYWORD) {
+            std.debug.print("PROCESSING DIRECTIVE on line {d: >8}: {s}\n", .{lineNumber, std.mem.trimLeft(u8, line, " \t")});
+        }
 
         //std.debug.print("Processing directive: '{s}'\n", .{std.mem.trimLeft(u8, std.mem.trimRight(u8, line, "\r"), " \t")});
         switch (directive.kind) {
@@ -233,7 +239,7 @@ fn recalculateSpec(directory: []const u8) !void {
             },
             .BLOCK => {
                 if (directive.filepath.len != 0) {
-                    codeBlockLine = 1;
+                    codeBlockLine = 0;
                     var codeBlockLineCount: usize = 0;
 
                     if (sourceFile) |f| {
@@ -269,10 +275,9 @@ fn recalculateSpec(directory: []const u8) !void {
                     padding = ((width / 4) + 1) * 4 + directive.indent;
 
                     try manualFileWriter.print("    {s}:\n", .{directive.filepath});
-                } else codeBlockLine += 1;
+                }
                 while (sourceReader.takeDelimiter('\n')) |maybeSourceLine| {
                     const sourceLine = maybeSourceLine orelse break;
-                    defer codeBlockLine += 1;
                     const noCharachterReturn = std.mem.trimRight(u8, sourceLine, "\r");
                     const cleanLine = std.mem.trimLeft(u8, noCharachterReturn, " \t");
 
@@ -281,6 +286,7 @@ fn recalculateSpec(directory: []const u8) !void {
                         break;
                     }
 
+                    codeBlockLine += 1;
                     const maxTextWidth = 80 - (padding + 4);
                     try manualFileWriter.print("{d: >[1]} |  ", .{
                         codeBlockLine,
@@ -362,6 +368,13 @@ fn recalculateSpec(directory: []const u8) !void {
                     if (err != error.EndOfStream) return err;
                 }
                 try manualFileWriter.writeByte('\n');
+            },
+            .KEYWORD => {
+                currentDirective += 1;
+                if (currentDirective < directives.items.len) {
+                    directive = directives.items[currentDirective];
+                }
+                continue;
             },
             else => unreachable,
         }

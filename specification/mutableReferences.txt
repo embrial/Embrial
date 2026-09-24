@@ -1,0 +1,18 @@
+var x i32 = 0;
+
+var p1 *i32 = &x;
+var p2 *i32 = &x; # borrow error, p1 is already mutably borrowing x
+var r1 ~i32 = $x; # borrow error, p1 is already mutably borrowing x
+
+var p3 *i32 = p1; # p1 moved to p3
+var r2 ~i32 = p3; # cannot assign from mutable reference to immutable reference
+
+x = 1; # borrow error
+p1.* = 2; # borrow error, p1 invalid after move of p1 to p3
+p3.* = 2;
+
+println(x); # borrow error
+            # if p went out of scope on line 6, would print 2
+println(p1.*); # borrow error, p1 invalid after move of p1 to p3
+println(p2.*); # error, p2 is invalid
+println(p3.*); # prints 2

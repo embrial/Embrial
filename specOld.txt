@@ -105,7 +105,7 @@ Tokens:
     Tokens in lang are a a token class associated with a region of charachters in the
     source text. Tokens are classified as identifiers, keywords, operators, or literals.
 
-    Statement terminators:
+Statement terminators:
 
     Statements must terminate with either a newline, or a semicolon. The first newline
     following a statement is not whitespace. All other newlines are whitespace.

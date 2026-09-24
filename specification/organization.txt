@@ -1,0 +1,42 @@
+Table of contents
+AI Assistance Disclosure
+License
+Introduction
+Notation
+Source code representation
+Characters
+Comments
+Keywords
+Operators and punctuation
+Integer literals
+Floating point literals
+
+Memory model
+Bindings
+Scopes
+Enums
+Structs
+Functions
+Modules
+Lambdas
+Interfaces
+Modules
+Generics
+Allocators
+Blocks
+Expressions
+Control flow
+Statements
+Optionals
+Reference types
+Owning types
+Non owning types
+Mutable references
+Immutable references
+Slices
+Expose
+Include
+Entry points
+Constraints
+Importing
+Command Line Interface CLI

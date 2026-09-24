@@ -1,0 +1,6 @@
+const x @i32 = Heap.create(0);
+#comment
+var y @i32 = x; 
+println(y);         # ownership error, x invalid after move
+x = Heap.create(1); # error, cannot assign twice to immutable variable x
+y = Heap.create(2); # the memory allocated on line 1 is released

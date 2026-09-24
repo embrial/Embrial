@@ -1,0 +1,789 @@
+Embrial uses a strict ownership and borrowing model to provide memory safety
+without sacrificing direct access to memory. All data in Embrial has exactly one
+owner. References and borrowing can be used to access data that is not owned.
+
+A binding is an association between a name and data. Bindings are either mutable
+or immutable. Mutable and imutable bindings are called variables, and constants
+respectivly. To declare a binding, first write the mutability, followed by its
+type and name.
+
+var   x  i32; #   mutable binding
+const PI f64; # immutable binding
+
+Declaring variable and constants follow C-style scoping rules. Two bindings with
+the same name cannot be defined in the same scope.
+
+var x i32;
+var x i32; # error: redeclaration of "x"
+
+A binding may be declared without being initialized. Any uninitialized binding
+is considered invalid until it assigned a value. Reading from an invalid binding
+is a compile-time error.
+
+var x i32;
+const PI f64;
+
+print(x);  # error: "x"  is invalid
+print(PI); # error: "PI" is invalid
+
+After a binding has been initialized, if it is mutable, then it can be assigned
+a new value. Otherwise if a binding is immutable, then any additional
+assignements after the binding is initialized will result in a compile-time
+error.
+
+var x i32;
+const PI f64;
+
+x = 0; # "x" initialized
+x = 1; # "x" assigned a new value
+x = 2; # "x" assigned a new value
+
+PI = 3.1415926; # "PI" initialized
+PI = 3.14;      # error: constant binding "PI" allready initialized
+
+A binding can be declared an initialized in one line as follows,
+
+var x i32 = 0;
+const PI f64 = 3.1415926;
+
+When assigning one binding to another, data is coppied from the source to the
+target.
+
+# both x and y are stack allocated and thus own unique regions of memory
+var x i32;
+var y i32;
+
+x = 0;
+y = x; # the value of 0 stored in x, is coppied to y
+
+print(x); # prints 0
+print(y); # prints 0
+
+
+In embrial data is either mutable or imutable. Mutable data is stored in
+variables, and imutable data is stored in constants. Both variables, and
+constants are called bindings because they both associate data with a name. To
+declare a binding first write the mutability, then the type followed by the
+name.
+
+var x i32;      #  mutable binding
+const PI f64;   # imutable binding
+
+Binding naming follows c scoping rules.
+
+var x i32;     # error redeclaration of "x"
+
+Both of the above bindings are currently invalid. Meaning they have not bean
+initialized with an initial value. Reading from an invalid binding is an error.
+Mutable bindings may have data written to them muliple times. Imutable bindings
+may have data written to them exactly once.
+
+print(x);       # error "x" is invalid
+print(PI);      # error "PI" is invalid
+
+x = 0; # x is no longer invalid
+x = 1;
+x = 2;
+
+PI = 3.1415926; # PI is no longer invalid
+PI = 3.14;      # error const "PI" allready initialized
+
+Bindings can be declared and initialized in one line as follows,
+
+const x i32 = 0;
+
+In Embrial, all data must have exactly one owner. This requirement provides
+memory safety without giving up direct access to memory.
+
+Traditional pointer types combine several independent responsibilities. A
+pointer may own an allocation, borrow an object, permit mutation, permit reads,
+represent the absence of a value, or refer to an element of an array. Embrial
+separates these responsibilities into distinct reference and type constructs,
+allowing the type system to describe how a reference may be used.
+
+An owning reference is represented by prefixing a type T with the @ type
+modifier: @T. An @T represents exactly one dynamically allocated value of type
+T. The owner is responsible for eventually destroying the value and releasing
+its associated storage.
+
+The allocator interface provides the create function for allocating and
+initializing an @T. A function with the form fn create<T>(...) T may serve as a
+constructor for type T. Calling Allocator.create<T>(...) allocates storage for a
+single T and initializes that storage with the result of the constructor.
+
+
+
+Traditional C pointers have to many responsibilities, they may own an
+allocation, borrow an object, premit mutation, permit reads, represent a null
+pointer, or point to an array. Embrial uses only references with pointers being
+represented through the optional type modifier, and divides the remaning
+responsibilities into unqiue reference types.
+
+To represent an onwing reference in Embrial, prefix a given type T with the
+owned '@' type modifier. `@T` This reference type represents exacly one
+dynamically allocated value of type T. The onwer is responsible for eventually
+destroying the value and releasing its storage. The allocator interface provides
+the create function to allocate and initialize an `@T`. `fn create<T>(...) T` is
+considered a constructor for type T, and calling `Allocator.create<T>(...);`
+will allocate memory for a single T, and write the result of the constructor
+into that memory.
+
+var x @i32 = Heap.create(0);
+
+Conceptually equivalent c,
+
+int32_t *x = malloc(sizeof(int32_t));
+if (!x) exit(1);
+*x = 0;
+
+The important difference is ownership. In C, the compiler generally cannot
+determine who is repsonsible for freeing `x`. In Embrial, the owned type `@T`
+records that the binding owns the allocation. When an owning binding is assigned
+to another owning binding, ownership is moved instead of copied.
+
+var x @i32 = Heap.create(0);
+var y @i32 = x;
+
+After the assignment, y owns the allocation and x is invalid. Conceptually,
+
+int32_t *y = x;
+x = NULL;
+
+In Embrial the equivalent of setting a pointer to null for a reference is
+invalidating it. Essentially moving x into y in the above example returns x to
+the same state it would be in if it were just declared but not assigned a value.
+And of course using an invalid binding is a compile time error.
+
+When an owned type `@T` goes out of scope, embrial calls the Allocator which
+allocated the owned type's destructor. `Allocator.destroy<T>(t @T);` Embrial may
+choose to treat `@T` as a "fat pointer", where it is a product type containing
+the address of the memory the `T` was allocated in, and a function pointer to
+the allocator's destroy function, or it may insert the destructor call as a zero
+cost abstraction.
+
+An owned type `@T` is constrained by the lifetime of its allocator. An owned
+type cannot outlive the allocator in which it was allocated. 
+
+var x @i32;
+{
+    var arena Arena<i32> = Arena.from(Heap.alloc(1000));
+    
+    x = arena.create(0);
+    # lifetime of arena allocator ends here
+}
+
+print(x); # error x invalid
+
+The `*` type modifier represent a mutable, non-owning reference to exactly one
+piece of data. A mutable reference does not own the underlying memory of the
+data it points to. Instead it borrows access to the memory, and permits both
+reading and writing to the data through the mutable reference. To create a
+mutable reference to a binding x, use the get mutable reference operator '&' in
+prefix before the name `&x`. Similarily to `@T` the a binding of type `*T` is
+assigned to another binding of the same type, ownership is moved, instead of
+data being coppied. Additionally once a binding has one outstanding imutable
+borrow, future applications of the get mutable reference operator `&` will emit
+a compile-time borrow error.
+
+var x i32 = 10;
+var p *i32 = &x;
+
+p.* = 20;
+
+The lifetime of p is constrained by the lifetime of the data it borrows. A
+mutable reference cannot outlive its borrowed value.
+
+The '~' type modifier represents an imutable, non-owning reference to exactly
+one piece of data. An imutable reference does not own the underlying memory of
+the data it points to. Intead it borrows access to the memory, permiting only
+read access to the data. To create an imutable reference to a binding x, use the
+get imutable binding operator '$' in prefix before the name `$x`. When assigning
+from one binding of type `~T` to another of the same type, data is copied. The
+'$' operator will not emit a compile-time borrow error if there exists an
+outstanding imutable borrow of the binding in question.
+
+var x i32 = 10;
+var r ~i32 = $x;
+
+print(r.*);
+
+The lifetime of r is constrained by the lifetime of the data it borrows. An
+imutable reference cannot outlive its borrowed value.
+
+Additionally a mutable borrow `*` and an imutable borrow `~` to the same type
+may not exist at the same time. Any violation of this rule will emit a
+compile-time borrow error. The borrow checker maintains these conditions.
+
+For the purposes of FFI, references can be marked unsafe meaning that they do
+not participate in borrow checking. In other words a `unsafe *T` and an `unsafe
+~T` may point to the same binding.
+
+If a type needs to represent the case where no value exists prefix the type with
+the optional type modifier `?`. 
+
+var x ?i32 = null;    # null means x has no value
+x = 10;            # now x has the value 10
+
+To assign an optional type `?T` to a regular type `T` use one of the following.
+
+var x ?i32 = null;
+
+# specify a default if null
+var y i32 = if x |u|: u else: 0;
+y = x orelse 0;
+
+# panic if null
+y = if x |u|: u else: unreachable;
+y = x orelse unreachable;
+
+The `.?` is the short circuiting unwrap operator. If in an expression `.?` then
+the expression short circuits to the orelse cluse. If no orelse clause is
+specified then the unwrap chain short circuits to unreachable and the program
+panics.
+
+y = x orelse unreachable;
+y = x.?;
+y = x.? orelse unreachable; # redundant `.?`
+
+Given an optional chain `x.?.y.?.z.?` and no orelse clause the program panics, if
+an orelse clause is specified like, `x.?.y.?.z.? orelse 0` if any of the unwraps
+fails the entire expression defaults to zero.
+
+Pointers are represented in lang through a combination of type modifiers such as
+`?*T` or an `?~T` meaning an optional mutable reference to T, and an optional
+imutable reference to T respectivly. These types differ from their non-nullable
+counterparts in that they may contain no reference at all.
+
+var p ?*i32 = null;
+var r ?~i32 = null;
+
+Nullability is therefore independent of mutability:
+
+*T   mutable, non-nullable reference
+~T   immutable, non-nullable reference
+?*T  mutable, nullable reference
+?~T  immutable, nullable reference
+
+To represent sequential allocations and views into other sequential allocoation
+or arrays embrial provides the owned sequential allocation type `[@]T`, the
+mutable slice type `[*]T` and the imutable slice type `[~]T`. Each of these
+types obeys similar rules to the owned type `@T`, mutable borrow type `*T`, and
+the imutable borrow type `~T` except they also specify a length or a capacity of
+how many elements they own or borrow. For slices, there is an additional
+requirement that their borrowed region do not overlap, however borrowing from
+the same buffer at differnt places is valid.
+var array []i32 = [1, 2, 3, 4, 5];
+
+var mutable [*]i32 = &array[1..4];
+var immutable [~]i32 = $array[0..1];
+
+
+The slice borrows only the specified region of the allocation. Consequently, two
+slices may coexist when their borrowed regions do not overlap, subject to the
+normal mutable/immutable borrowing rules.
+
+For example:
+
+var left  [*]i32 = &array[0..2];
+var right [*]i32 = &array[2..5];
+
+
+is valid because the two mutable slices refer to disjoint regions.
+
+However:
+
+var first [*]i32 = &array[0..3];
+var second [*]i32 = &array[2..5];
+
+
+is invalid because the two mutable borrows overlap.
+
+Summary
+
+Embrial splits the capabilities traditionally represented by a C pointer into
+distinct types:
+
+Type  Owns memory  Mutable  Nullable  Target
+@T    Yes          Yes      No        One T
+*T    No           Yes      No        One T
+~T    No           No       No        One T
+?*T   No           Yes      Yes       One T
+?~T   No           No       Yes       One T
+[@]T  Yes          Yes      No        Sequential Ts
+[*]T  No           Yes      No        Sequential region of Ts
+[~]T  No           No       No        Sequential region of Ts
+
+Thus, where C has one general-purpose pointer mechanism, Embrial distinguishes
+ownership, borrowing, mutability, nullability, and sequential memory at the type
+level.
+
+The fundamental rule is:
+
+Exactly one owner exists for every value, while any number of non-overlapping or
+immutable borrows may provide temporary access to that value.
+cat: Coding: Is a directory
+/**
+ * @file Embrial grammar for tree-sitter
+ * @author Adrian Long
+ * @license MIT
+ */
+
+/// <reference types="tree-sitter-cli/dsl" />
+// @ts-check
+
+export default grammar({
+  name: "embrial",
+
+  extras: $ => [
+    /\s/, // whitespace
+    $.comment,
+  ],
+
+  supertype: $ => [
+    $.expression,
+  ],
+
+  word: $ => $.identifier,
+
+  rules: {
+    source_file: $ => $.statements,
+    
+    comment: $ => token(seq('#', /.*/)),
+
+    statements: $ => repeat(choice(
+      $.itemDeclaration,
+      seq($.statement, ';'),
+    )),
+    
+    itemDeclaration: $ => optional(
+      $.functionDeclaration,
+    ),
+
+    statement: $ => seq(
+      choice(
+        $.bindingDeclaration,
+        $.expression,
+      ),
+      ';'
+    ),
+
+    implementsExpression: $ => seq(
+      $.identifier,
+      $.genericsDeclaration,
+      optional(seq(
+        "implements",
+        $.identifier,
+        repeat(seq(
+           '+',
+           $.identifier,
+        ))
+      ))
+    ),
+
+    genericsDeclaration: $ => optional(seq(
+      '<',
+      $.implementsExpression,
+      repeat(seq(',', $.implementsExpression)),
+      '>'
+    )),
+
+    functionSignature: $ => seq(
+      '(',
+      optional(seq(
+        $.identifier,
+        $.type,
+        repeat(seq(
+          ',',
+          $.identifier,
+          $.type
+        ))
+      )),
+      ')',
+      optional($.type),
+    ),
+    functionDeclaration: $ => seq(
+      "fn",
+      $.identifier,
+      $.genericsDeclaration,
+      $.functionSignature,
+      choice(
+        seq('{', $.statements, '}'),
+        seq(':', $.expression, ';')
+      )  
+    ),
+
+
+    bindingDeclaration: $ => seq(
+      choice("var", "const"),
+      $.identifier,
+      optional($.type),
+      optional(seq('=', $.expression)),
+    ),
+
+    prefixTypeModifiers: $ => repeat(choice (
+      '?',
+      '@',
+      '*',
+      '~',
+      seq('[', optional($.intLiteral), ']'),
+      "[@]",
+      "[*]",
+      "[~]",
+    )),
+
+    genericsArguments: $ => optional(seq(
+      '<',
+      $.identifier,
+      optional($.genericsArguments),
+      repeat(seq(
+        ',',
+        $.identifier,
+        optional($.genericsArguments),
+      )),
+      '>'
+    )),
+
+    genericsTypeModifier: $ => optional($.genericsArguments),
+
+    errorTypeModifier: $ => optional(seq(
+      '!',
+      choice(
+        $.identifier,
+        seq(
+          '{',
+          $.identifier,
+          repeat(seq(
+            ',',
+            $.identifier
+          )),
+          '}'
+        ),
+      )
+    )),
+
+    lambdaType: $ => seq(
+      "fn",
+      $.genericsTypeModifier,
+      $.functionSignature,
+    ),
+
+    lambda: $ => seq(
+      "fn",
+      $.genericsDeclaration,
+      $.functionSignature,
+      choice(
+        seq('{', $.statements, '}'),
+        seq(':', $.expression)
+      )
+    ),
+
+    bindingType: $ => seq(
+      $.prefixTypeModifiers,
+      $.identifier,
+      $.genericsTypeModifier
+    ),
+
+    type: $ => choice(
+      $.bindingType,
+      $.lambdaType
+    ),
+
+    expression: $ => choice(
+      $.assignment_expression,
+      $.logical_or_expression,
+      $.logical_and_expression,
+      $.bitwise_or_expression,
+      $.bitwise_xor_expression,
+      $.bitwise_and_expression,
+      $.equality_expression,
+      $.relational_expression,
+      $.binary_expression,
+      $.unary_expression,
+      $.postfix_expression,
+      $.primary_expression,
+    ),
+
+    basicAssignmentOperator: $ => choice(
+      '=',
+      "&=",
+      "|=",
+      "^=",
+      "+=",
+      "-=",
+      "*=",
+      "/=",
+      "<<=",
+      ">>="
+    ),
+    wrapingAssignmentOperator: $ => choice(
+      "+%=",
+      "-%=",
+      "*%=",
+    ),
+    saturatingAssignmentOperator: $ => choice(
+      "+|=",
+      "-|=",
+      "*|=",
+      "<<|=",
+      ">>|="
+    ),
+
+    assignmentOperator: $ => choice(
+      $.basicAssignmentOperator,
+      $.wrapingAssignmentOperator,
+      $.saturatingAssignmentOperator
+    ),
+
+    assignment_expression: $ => prec(1, seq(
+      $.identifier,
+      $.assignmentOperator,
+      $.expression
+    )),
+
+    logical_or_expression: $ => prec.left(2, seq(
+      $.expression, "||", $.expression,
+    )),
+
+    logical_and_expression: $ => prec.left(2, seq(
+      $.expression, "&&", $.expression
+    )),
+
+    bitwise_or_expression: $ => prec.left(3, seq(
+      $.expression, '|', $.expression
+    )),
+
+    bitwise_xor_expression: $ => prec.left(4, seq(
+      $.expression, '^', $.expression
+    )),
+    
+    bitwise_and_expression: $ => prec.left(5, seq(
+      $.expression, '&', $.expression
+    )),
+
+    eqOperator: $ => choice(
+      "==",
+      "!="
+    ),
+
+    equality_expression: $ => prec.left(6, seq(
+      $.expression, $.eqOperator, $.expression
+    )),
+
+    comparisonOperator: $ => choice(
+      '<',
+      "<=",
+      '>',
+      ">="
+    ),
+
+    relational_expression: $ => prec.left(7, seq(
+      $.expression, $.comparisonOperator, $.expression
+    )),
+
+    shiftOperator: $ => choice(
+      "<<",
+      "<<|",
+      ">>",
+      ">>|",
+    ),
+    addOrSubOperator: $ => choice(
+      "+",
+      "+%",
+      "+|",
+      "-",
+      "-%",
+      "-|"
+    ),
+    
+    mulOrDivOperator: $ => choice(
+      "*",
+      "*%",
+      "*|",
+      "/",
+    ),
+
+    binary_expression: $ => choice(
+      prec.left(8, seq($.expression, $.shiftOperator, $.expression)),
+      prec.left(9, seq($.expression, $.addOrSubOperator, $.expression)),
+      prec.left(10, seq($.expression, $.mulOrDivOperator, $.expression)),
+    ),
+
+    unary_expression: $ => prec.right(11, seq(
+      choice("try", '&', '$', '~', '!'),
+      $.expression
+    )),
+
+    expressionBlock: $ => seq(
+      '(',
+      $.expression,
+      repeat(seq(';', $.expression)),
+      ')'
+    ),
+
+    intLiteralOrExpressionBlock: $ => choice(
+      $.intLiteral,
+      $.expressionBlock
+    ),
+
+    rangeExpression: $ => seq(
+      $.intLiteralOrExpressionBlock,
+      optional(seq(
+        "..",
+        optional('='),
+        $.intLiteralOrExpressionBlock,
+        optional(seq(
+          "by",
+          $.intLiteral
+        ))
+      ))
+    ),
+
+    chainExpression: $ => seq(
+      '.',
+      choice(
+        $.identifier,
+        '?',
+        '!',
+        '*'
+      ),
+    ),
+
+    postfix_expression: $ => prec.left(12, seq(
+      $.expression,
+      choice(
+        seq("orelse", $.expression),
+        seq("catch", $.expression),
+        seq('[', $.rangeExpression, ']'),
+        seq('(', $.expression, repeat(seq(',', $.expression)), ')'),
+        $.chainExpression
+      )
+    )),
+
+    arrayLiteral: $ => seq(
+      '[',
+      optional(seq(
+        $.expression,
+        repeat(seq(',',$.expression))
+      )),
+      ']'
+    ),
+
+    primary_expression: $ => choice(
+      $.identifier,
+      $.floatLiteral,
+      $.rangeExpression,
+      $.arrayLiteral,
+      $.lambda,
+      $.ifExpression,
+      $.matchExpression
+    ),
+
+//STMT>           -->  <IF-THEN> | <IF-THEN-ELSE>
+//<IF-THEN>        -->  if condition then <STMT>
+//<IF-THEN-ELSE>   -->  if condition then <E-STMT> else <STMT>
+//<E-STMT>         -->  <E-IF-THEN-ELSE>
+//<E-IF-THEN-ELSE> -->  if condition then <E-STMT> else <E-STMT>
+    ifExpression: $ => choice(
+      $.unambiguosIfExpression,
+      $.ifThen,
+      $.ifThenElse
+    ),
+    ifCondition: $ => seq(
+      "if", $.expression
+    ),
+    unambiguousIfExpression: $ => seq(
+      $.ifCondition, '{',
+        $.statements,
+      '}', optional(seq("else", option(
+        seq('{', $.statements, '}',),
+        seq(':', $.statements)
+      )))
+    ),
+    ifThen: $ => seq(
+      $.ifCondition, ':',
+    ),
+
+
+    intLiteral: $ => choice(
+      $.decimalLiteral,
+      $.binaryLiteral,
+      $.octalLiteral,
+      $.hexLiteral
+    ),
+
+    decimalLiteral: $ => choice(
+      '0',
+      seq(/[1-9]/, optional('_', $.decimalDigits))
+    ),
+    binaryLiteral: $ => seq(
+      '0',
+      choice('b', 'B'),
+      $.binaryDigitis
+    ),
+    octalLiteral: $ => seq(
+      '0',
+      choice('b', 'B'),
+      octalDigits
+    ),
+    hexLiteral: $ => seq(
+      '0',
+      choice('x', 'X'),
+      hexDigits
+    ),
+
+    decimalDigits: $ => seq(
+      /[0-9]/,
+      repeat(seq(
+        optional('_'),
+        /[0-9]/
+      ))
+    ),
+    binaryDigits: $ => seq(
+      /[01]/,
+      repeat(seq(
+        optional('_'),
+        /[01]/
+      ))
+    ),
+    octalDigits: $ => seq(
+      /[0-7]/,
+      repeat(seq(
+        optional('_'),
+        /[0-7]/
+      ))
+    ),
+    hexDigits: $ => seq(
+      /[0-9a-fA-F]/,
+      repeat(seq(
+        optional('_'),
+        /[0-9a-fA-F]/
+      ))
+    ),
+
+    floatLiteral: $ => optional(
+      $.decimalFloatLiteral,
+      $.hexFloatLiteral
+    ),
+    decimalFloatLiteral: $ => seq(
+      $.decimalDigits,
+      optional(seq(
+        '.',
+        $.decimalDigits
+      )),
+      optional($.decimalExponent)
+    ),
+    decimalExponent: $ => seq(
+      choice('e', 'E'),
+      optional(choice('+', '-')),
+      decimalDigits
+    ),
+    hexFloatLiteral: $ => seq(
+      $.hexLiteral,
+      choice('p', 'P'),
+      optional(choice('+','-')),
+      decimalDigits
+    ),
+
+    identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
+  }
+});

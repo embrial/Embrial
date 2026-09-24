@@ -1,6 +1,3 @@
-#ifndef LOGGING_H
-#define LOGGING_H
-
 /*
 Header comment:
     File:       logging.h
@@ -15,6 +12,12 @@ Description:
 Usage:
 
 */
+
+#ifndef LOGGING_H
+#define LOGGING_H
+
+#include <stdlib.h>
+#include <stdio.h>
 
 #define descriptor(label, ...) do {                         \
     fprintf(stderr, "%s:%5d %s: ",                          \

@@ -1,0 +1,46 @@
+numLit > decimalLit | binaryLit | octalLit | hexLit;
+
+underscoreOpt > '_' | EPSILON;
+B > 'b' | 'B';
+O > 'o' | 'O';
+oneToNine > '1' | '2' | '3' | ... | '9';
+binaryDigit > '0' | '1';
+octalDigit > '0' | '1' | '2' | ... | '7';
+hexDigit > NUM | 'a' | 'b' | 'c' | ... | 'f' | 'A' | 'B' | 'C' | ... | 'F';
+
+underscoreOptAndDecimalDigits > '_' decimalDigits | decimalDigits;
+
+decimalLit > '0' | oneToNine underscoreOptAndDecimalDigits;
+binaryLit > '0' B binaryDigit underscoreOpt binaryDigits;
+octalLit > '0' O underscoreOpt octalDigits;
+hexLit > '0' X  underscoreOpt hexDigits;
+
+decimalDigits > NUM decimalDigitsOpt;
+binaryDigits > binaryDigit underscoreOpt binaryDigitsOpt;
+octalDigits > octalDigit underscoreOpt octalDigitsOpt;
+hexDigits > hexDigit underscoreOpt hexDigitsOpt;
+
+decimalDigitsOpt > decimalDigits | EPSILON;
+binaryDigitsOpt > binaryDigits | EPSILON;
+octalDigitsOpt > octalDigits | EPSILON;
+hexDigitsOpt > hexDigits | EPSILON;
+#comment
+floatLit > decimalFloatLit | hexFloatLit;
+
+decimalFloatLit > decimalDigits dotDecimalDigitsOpt decimalExponentOpt
+| decimalDigits decimalExponent
+| '.' decimalDigits decimalExponentOpt
+;
+dotDecimalDigitsOpt > '.' decimalDigits | EPSILON;
+decimalExponentOpt > decimalExponent | EPSILON;
+decimalExponent > E PLUS_OR_MINUS decimalDigits;
+E > 'e' | 'E';
+PLUS_OR_MINUS > '+' | '-';
+
+hexFloatLit > '0' X hexMantissa hexExponent;
+hexMantissa > underscoreOpt hexDigits dotHexDigitsOpt
+| '.' hexDigits
+;
+dotHexDigitsOpt > '.' hexDigits | EPSILON;
+hexExponent > P PLUS_OR_MINUS decimalDigits;
+P > 'p' | 'P';

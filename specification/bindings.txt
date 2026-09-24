@@ -1,0 +1,21 @@
+var   x  i32; #   mutable binding
+const PI f64; # immutable binding
+#comment
+var x i32; # error: redeclaration of "x"
+#comment
+println(x);  # error: "x"  is invalid
+println(PI); # error: "PI" is invalid
+#comment
+x = 0; # "x" initialized
+x = 1; # "x" assigned a new value
+x = 2; # "x" assigned a new value
+
+PI = 3.1415926; # "PI" initialized
+PI = 3.14;      # error: constant binding "PI" allready initialized
+#comment
+var y i32 = 3;
+#comment
+y = x; # the value 2 stored in x, is coppied to y
+
+println(x); # prints 2
+println(y); # prints 2
