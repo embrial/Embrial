@@ -1,0 +1,114 @@
+Table of contents
+AI Assistance Disclosure
+License
+Introduction
+Notation
+Source code representation
+Characters
+Comments
+Keywords
+Operators and punctuation
+Integer literals
+Floating point literals
+
+Memory model
+Bindings
+
+#    We defined the memory model and bindings which really had no dependencies.
+#    Now the hard part.
+#
+#    All the of the product, sum, and group types, struct, enum, module, and
+#    interface don't really need the idea of scopes or blocks, since their blocks
+#    are not expression scopes or blocks.
+#
+#    The interface is a struct of function pointers so functions, methods,
+#    lambdas, and structs have to be defined before interfaces.
+#
+#    A module is a group of static declarations, and functions. Their entry
+#    points can be explained later.
+#
+#    An enum is probably the closest to a declaration.
+#
+#    All of functions, structs, enums, modules, interfaces, can be introduced
+#    using the unmodified basic binding model since type modifier versions can be
+#    joined in later.
+#
+#    Generics should be explained as an add on to functions, modules, and struct
+#    after all of them have been defined.
+#
+#    Allocators ought to be declared after all of the above.
+#    
+#    When we are doing allocators we should know about error handling and about
+#    how errors are enums passed through another effective data channel. In
+#    assembly like going to a different instruction instead of the last one that
+#    ran. We need to establish try and catch. Which are basically expressions so
+#    we might want to do those first. And while we are at it the optional type
+#    with orelse the .? operator and such might as well be introduced.
+
+Memory model
+Bindings:
+    Don't forget to explain that the basic types always copy values which
+    technically obeys the memory model.
+Blocks and Scopes:
+    Explain c style scoping, statement blocks, and expression blocks;
+
+,- Functions:
+|  Lambdas:
+'- Methods:
+,- Enums:                                       
+|      Closest in similarity to the basic types
+|  Structs:
+|      has to be before interfaces and modules but after declarations
+|  Interfaces:
+|      struct of lambdas/function pointers I don't know about terminology
+|  Modules:
+|      a module is a logical grouping of declarations, enums, struct, and
+'-
+
+Generics:
+    add on to functions, enums, struct, interfaces, and modules
+
+,- Control flow
+|  Expressions
+|      required to introduce optionals
+|      explain that if and match as introduced above can be used in expressions
+|  Optionals
+|      Should be introduced with errors and error handling
+|  Error handling:
+|      required to introduce allocators
+'-
+
+Allocators
+Lifetimes
+References
+
+#Scopes:
+#Blocks:
+#
+#Lifetimes
+#Enums
+#Structs
+#Functions
+#Modules
+#Lambdas
+#Interfaces
+#Modules
+#Generics
+#Allocators
+#
+#Expressions
+#Control flow
+#Statements
+#Optionals
+#Reference types
+#Owning types
+#Non owning types
+#Mutable references
+#Immutable references
+#Slices
+#Expose
+#Include
+#Entry points
+#Constraints
+#Importing
+#Command Line Interface CLI
