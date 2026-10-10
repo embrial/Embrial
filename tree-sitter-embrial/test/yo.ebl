@@ -1,0 +1,5 @@
+const x i32 = 42;
+var y *i32 = &x; # A comment
+fn main(x i32) {
+    println(42);
+}

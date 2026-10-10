@@ -1,0 +1,36 @@
+===============
+Basic Binding
+===============
+var x = 42;
+---
+(source_file
+  (statements
+    (statement
+      (bindingDeclaration
+        (identifier)
+        (expression
+          (primary_expression
+            (rangeExpression
+              (intLiteralOrExpressionBlock
+                (intLiteral
+                  (decimalLiteral))))))))))
+
+===============
+Typed Binding
+===============
+var x i32 = 42;
+---
+(source_file
+  (statements
+    (statement
+      (bindingDeclaration
+        (identifier)
+        (type
+          (bindingType
+            (identifier)))
+        (expression
+          (primary_expression
+            (rangeExpression
+              (intLiteralOrExpressionBlock
+                (intLiteral
+                  (decimalLiteral))))))))))
