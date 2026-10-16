@@ -40,6 +40,42 @@ export default grammar({
     
     itemDeclaration: $ => choice(
       $.functionDeclaration,
+      $.moduleDeclaration,
+      $.enumDeclaration,
+      $.structDeclaration,
+      $.interfaceDeclaration,
+    ),
+
+    moduleDeclaration: $ => seq(
+        "module",
+        $.identifier,
+        '{',
+        optional($.statements),
+        '}'
+    ),
+
+    enumDeclaration: $ => seq(
+        "enum",
+        $.identifier,
+        '{',
+        repeat($.itemDeclaration),
+        '}'
+    ),
+
+    structDeclaration: $ => seq(
+        "struct",
+        $.identifier,
+        '{',
+        repeat($.itemDeclaration),
+        '}'
+    ),
+
+    interfaceDeclaration: $ => seq(
+        "interface",
+        $.identifier,
+        '{',
+        repeat(seq($.identifier, $.lambdaType, ';')),
+        '}'
     ),
 
 
@@ -357,11 +393,11 @@ export default grammar({
     ),
 
     ifExpression: $ => prec.right(seq(
-        'if',
+        "if",
         $.expression,
         $.block,
         optional(seq(
-            'else',
+            "else",
             $.block
         ))
     )),

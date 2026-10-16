@@ -292,6 +292,25 @@
     "fields": {}
   },
   {
+    "type": "enumDeclaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "itemDeclaration",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "eqOperator",
     "named": true,
     "fields": {}
@@ -631,6 +650,25 @@
     }
   },
   {
+    "type": "interfaceDeclaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "lambdaType",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "itemDeclaration",
     "named": true,
     "fields": {},
@@ -639,7 +677,23 @@
       "required": true,
       "types": [
         {
+          "type": "enumDeclaration",
+          "named": true
+        },
+        {
           "type": "functionDeclaration",
+          "named": true
+        },
+        {
+          "type": "interfaceDeclaration",
+          "named": true
+        },
+        {
+          "type": "moduleDeclaration",
+          "named": true
+        },
+        {
+          "type": "structDeclaration",
           "named": true
         }
       ]
@@ -716,6 +770,25 @@
       "types": [
         {
           "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "moduleDeclaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "statements",
           "named": true
         }
       ]
@@ -916,6 +989,25 @@
         },
         {
           "type": "statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "structDeclaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "itemDeclaration",
           "named": true
         }
       ]
@@ -1246,6 +1338,10 @@
     "named": false
   },
   {
+    "type": "enum",
+    "named": false
+  },
+  {
     "type": "fn",
     "named": false
   },
@@ -1262,11 +1358,23 @@
     "named": false
   },
   {
+    "type": "interface",
+    "named": false
+  },
+  {
+    "type": "module",
+    "named": false
+  },
+  {
     "type": "orelse",
     "named": false
   },
   {
     "type": "p",
+    "named": false
+  },
+  {
+    "type": "struct",
     "named": false
   },
   {

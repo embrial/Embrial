@@ -1,18 +1,21 @@
 ; Keywords
-[
-    "var"
-    "const"
-    "implements"
-    "fn"
-    "try"
-    "by"
-    "orelse"
-    "catch"
-] @keyword
+"var" @keyword
+"const" @keyword
+"implements" @keyword
+"fn" @keyword
+"try" @keyword
+"by" @keyword
+"orelse" @keyword
+"catch" @keyword
+"if" @keyword
+"else" @keyword
+"module" @keyword
+"struct" @keyword
+"enum" @keyword
 
 ; Type names
-(type) @type
-(bindingType) @type
+(bindingType
+  (identifier) @type)
 
 ; Variable declarations
 (bindingDeclaration
