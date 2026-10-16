@@ -82,29 +82,6 @@ Allocators
 Lifetimes
 References
 
-#Scopes:
-#Blocks:
-#
-#Lifetimes
-#Enums
-#Structs
-#Functions
-#Modules
-#Lambdas
-#Interfaces
-#Modules
-#Generics
-#Allocators
-#
-#Expressions
-#Control flow
-#Statements
-#Optionals
-#Reference types
-#Owning types
-#Non owning types
-#Mutable references
-#Immutable references
 #Slices
 #Expose
 #Include

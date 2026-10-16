@@ -1,0 +1,11 @@
+var x i32 = 0;
+
+{ # <-- this block's scope begins
+
+    println(x); # prints 0 
+#comment
+    var x i32 = 1;
+    var x i32 = 2; # error, x is already defined in this scope
+#comment
+    println(x); # prints 2
+} # scope ended

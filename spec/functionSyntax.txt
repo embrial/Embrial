@@ -1,0 +1,16 @@
+functionDefinition > "fn" ID parameters functionBody;
+lambdaDefinition > "fn" arguments functionBody;
+functionCall > ID arguments;
+functionType > "fn" parameters type;
+
+parameters > '(' parameterListOpt;
+parameterListOpt > ')' | parameterList;
+parameterList > ID type parametersOpt;
+parametersOpt > ')' | ',' parameterList;
+
+arguments > '(' argumentListOpt;
+argumentListOpt > ')' | argumentList;
+argumentList > expression argumentsOpt;
+argumentsOpt > ')' | ',' argumentList;
+
+functionBody > ':' expression | block;

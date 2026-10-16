@@ -1,39 +1,45 @@
 Table of contents:
     Table of contents: .....................................................   1
-    AI Assistance Disclosure: ..............................................  38
-    License: ...............................................................  44
-    Introduction: ..........................................................  53
-    Notation: ..............................................................  64
-    Source code representation: ............................................  94
-    Characters: ............................................................ 110
-    Comments: .............................................................. 112
-    Keywords: .............................................................. 143
-    Operators and punctuation: ............................................. 146
-    Integer literals: ...................................................... 177
-    Floating point literals: ............................................... 180
-    Memory model: .......................................................... 183
-    Bindings: .............................................................. 205
-    Reference types: ....................................................... 235
-    Owning types: .......................................................... 253
-    Non owning types: ...................................................... 277
-    Mutable references: .................................................... 286
-    Immutable references: .................................................. 297
-    Slices: ................................................................ 308
-    Optionals: ............................................................. 309
-    Functions: ............................................................. 310
-    Structs: ............................................................... 311
-    Modules: ............................................................... 312
-    Enums: ................................................................. 313
-    Interfaces: ............................................................ 314
-    Generics: .............................................................. 315
-    Allocators: ............................................................ 316
-    Entry points: .......................................................... 317
-    Constraints: ........................................................... 318
-    Importing: ............................................................. 319
-    Command Line Interface CLI: ............................................ 320
-    Blocks: ................................................................ 321
-    Expressions: ........................................................... 322
-    Statements: ............................................................ 323
+    AI Assistance Disclosure: ..............................................  44
+    License: ...............................................................  50
+    Introduction: ..........................................................  59
+    Notation: ..............................................................  70
+    Source code representation: ............................................ 100
+    Characters: ............................................................ 116
+    Comments: .............................................................. 118
+    Keywords: .............................................................. 149
+    Operators and punctuation: ............................................. 152
+    Integer literals: ...................................................... 190
+    Floating point literals: ............................................... 193
+    Memory model: .......................................................... 196
+    Bindings: .............................................................. 218
+    Blocks and Scopes: ..................................................... 254
+    Functions: ............................................................. 289
+    Lambas: ................................................................ 317
+    Methods: ............................................................... 323
+    Enums: ................................................................. 324
+    Structs: ............................................................... 414
+    Interfaces: ............................................................ 415
+    Modules: ............................................................... 416
+    Include: ............................................................... 417
+    Generics: .............................................................. 418
+    Control flow: .......................................................... 419
+    Expressions: ........................................................... 420
+    Optionals: ............................................................. 421
+    Error handling: ........................................................ 422
+    Allocators: ............................................................ 423
+    Lifetimes: ............................................................. 424
+    Reference types: ....................................................... 426
+    Owning types: .......................................................... 444
+    Non owning types: ...................................................... 468
+    Mutable references: .................................................... 477
+    Immutable references: .................................................. 488
+    Slices: ................................................................ 499
+    Expose: ................................................................ 500
+    Import: ................................................................ 501
+    Entry points: .......................................................... 502
+    Constraints: ........................................................... 503
+    Command Line Interface: ................................................ 504
 
 AI Assistance Disclosure:
     This language specification was written with AI assistance from ChatGPT and
@@ -204,16 +210,18 @@ Comments:
     a newline
 
 Keywords:
+    fn    
+    return
 Operators and punctuation:
     Basic  Wrapping  Saturating  Assigning  Wrapping   Saturating
-    +       +%       +|          +=          +%=       +|=
-    -      -%        -|          -=          -%=       -|=
-    *      *%        *|          *=          *%=       %|=
+    +       +%       +|          +=         +%=        +|=
+    -      -%        -|          -=         -%=        -|=
+    *      *%        *|          *=         *%=        %|=
     /                            /=                       
     //                           //=
     %                            %=                       
-    <<              <<|         <<=                   >>|=
-    >>              >>|         >>=                   >>|=
+    <<              <<|         <<=                    >>|=
+    >>              >>|         >>=                    >>|=
 
     Bitwise  Logical  Bitwise assigning
     &         &&       &=
@@ -226,11 +234,18 @@ Operators and punctuation:
     [   ]
     {   }
 
+    Single Expression Block
+    :
+
     Dot  Exclusive  Inclusive  Vararg
     .    ..         ..=        ...
 
-    Reference  Reference To  Allocation  Single Expression Block
-    ~          $             @           :
+               Reference Specifier  Reference to
+    Mutable    *                    &
+    Immutable  ~                    $
+
+    Allocated Specifier 
+    @
 
     Misc
     ,   ;
@@ -347,7 +362,207 @@ Bindings:
 
       12 |  var y i32 = 3;
 
-   
+    By default all basic bindings follow copy semantics, meaning that during an
+    assignment the value contained in the source binding is copied to the target
+    binding. The owned type specifier '@' and mutable reference specifier '*'
+    change the assignment semantics of the effected bindings to be move
+    semantics. 
+
+Blocks and Scopes:
+    The scope of a binding refers to the region of a program in which that
+    binding can be accessed. Embrial is statically scoped, meaning that the
+    scope of a binding can be determined by examining the program text.
+
+    A file begins with a single. Opening and closing, curly parenthesis, are
+    used to delimit the start and end respectively of a smaller region of scope
+    called a block. The contents of a block, excluding its delimiters is called
+    its scope. Blocks may contain other blocks.
+
+    To determine to which binding an identifier refers to, first search the
+    current scope for a binding with the given name that appears before the
+    identifier's usage. If no such binding is found, continue searching
+    enclosing scopes outwards until either a qualifying biding is found or the
+    start of the file is reached. If such a binding is found, then the
+    identifier refers to that binding.
+
+    spec/scopes.txt:
+       1 |  var x i32 = 0;
+       2 |  
+       3 |  { # <-- this block's scope begins
+       4 |  
+       5 |      println(x); # prints 0 
+
+    When the compiler sees x as println's first argument on line 5, there is no
+    binding named x defined in the current scope above the usage. Therefore the
+    compiler continues it's search upwards until it finds the binding x defined
+    on line 1.
+
+       6 |      var x i32 = 1;
+       7 |      var x i32 = 2; # error, x is already defined in this scope
+
+    When the compiler sees the declaration on line 7 it records that 'x' is
+    defined in the current scope. This declaration of x shadows the one declared
+    on line 1, now assignments to x in this scope will affect the binding
+    defined on line 7, rather then the one defined on line 1. When x is defined
+    again on line 8, the compiler performs the same search and finds that x was
+    already defined on line 7, and emits an error.
+
+       8 |      println(x); # prints 2
+       9 |  } # scope ended
+
+Functions:
+    #spec/functionSyntax.txt
+    A function defines a named sequence of operations that can be executed by
+    calling it. 'print' and 'println' are examples of functions. 
+
+    When a function is called, its operations are executed in a new stack frame.
+    Functions declare a list of parameters that specify the types of argument
+    accepted by the function. At the call site, arguments are evaluated and
+    their values are copied or moved into the corresponding parameters within
+    the function's stack frame.
+
+    spec/functions.txt:
+       1 |  fn foo(x i32, y i32) i32 {
+
+    When the execution of a function ends, a value can be returned using a
+    return statement. The functions signature specifies the type of the value
+    that must be returned by the function. If the functions return type is
+    'void' then the function cannot return a value.
+
+       2 |      return x;
+       3 |  }
+       4 |  
+       5 |  var x i32 = foo(0,1);
+       6 |  print(x); # prints 1
+
+    For a function an alternative way to write a block of the form,
+    'fn foo(x i32) i32 {return x;}' is to write
+    'fn foo(x i32) i32: x;'
+
+       7 |  fn bar(x i32) i32: x;
+       8 |  
+       9 |  var y i32 = bar(2);
+      10 |  print(y); # prints 2
+
+Lambas:
+    A lambda is a function without a name. A binding's type can be function
+    signature.
+
+      11 |  #   baz is a function that takes two i32 arguments and returns an 
+            i32
+      12 |  #   VVVVVVVVVVVVVVVVVVVVVVVV
+      13 |  var baz fn(x i32, y i32) i32   = fn(x, y): y;
+      14 |  #                                ^^^^^^^^^^^
+      15 |  #                                lambda definition
+      16 |  z = baz(3,4);
+      17 |  print(z); # prints 4
+      18 |  baz = foo;
+      19 |  z = baz(3,4);
+      20 |  print(z); # prints 3
+
+Methods:
+Enums:
+    enum Message {
+        Quit;
+        Move {x i32, y i32};
+        Write String;
+        ChangeColor {i32, i32, i32};
+        i32; // if it was just this then Message.i32 or Message.4
+        i32; // but this so Message.4 and Message.5 only
+    }
+
+    match Message.i32(67) {
+        Message.Quit:
+        move Message.Move,
+        myStr Message.Write,
+        color Message.ChangeColor,
+        x Message.i32, // or Message.4
+    }
+
+    enum E1 {
+        i32;
+    }
+    enum E2 {
+        i32;
+        i32;
+    }
+    match E1.i32(42) {
+        x E1.i32: expr,
+        // y E1.0: expr, // also valid
+    }
+    match E2.rand(fn (e): match e { x E2.0: i32.rand(), y E2.1: i32.rand() }) match {
+        x E2.0: expr;
+        y E2.1: expr;
+        // x E2.i32: expr; // Invalid
+    }
+    match E1.i32(42) {
+        x i32: expr,
+        // y E1.0: expr, // also valid
+    }
+    match E2.rand(fn (e): match e { x E2.0: i32.rand(), y E2.1: i32.rand() }) match {
+        x 0: expr;
+        y 1: expr;
+        // x i32: expr; // Invalid
+    }
+
+
+    fn foo() enum { u64; u64; i32; x i32; u8 } {
+        return if bool.rand():
+            if bool.rand(): .0(7);
+            else: .1(13);
+        else if bool.rand():
+            if bool.rand():
+                if bool.rand(): 42 as i32;
+                else: .x(67)
+            else: .u8(69);
+    }
+    match foo() {
+        r1 .0, .1: println("u64"),
+        r2 i32, x: println("i32)
+        r3 u8: println("i32"),
+    }
+
+# ohNo.ebl
+    struct Point {
+        x i32;
+        y i32;
+        calc fn ($self) i32;
+    }
+    module Point {
+        fn print($self) {
+            println("({self.x},{self.y})");
+        }
+        // can't overide a previous definintion of the function
+        fn calc($self): self.x * self.y;
+    }
+    const Point p = Point {
+        .x = 6;
+        .y = 7;
+        .calc = fn (self): self.x + self.y;
+    }
+    fn sub(p Point) i32: p.x - p.y;
+    p.calc = sub;
+    const result i32 = p.2(); // oh lord
+    p.calc(); // prints -1
+    // p.calc(); does not become calc(p); because calc is a field
+    Point.calc(p); // prints 42
+    p.print(); // becomes Point.print($p)
+    p.sub(); // becomes sub(p);
+    Point.print($p);
+    
+
+Structs:
+Interfaces:
+Modules:
+Include:
+Generics:
+Control flow:
+Expressions:
+Optionals:
+Error handling:
+Allocators:
+Lifetimes:
+    
 Reference types:
     Traditional pointer types have too many responsibilities. A pointer may own
     an allocation, borrow an object, permit mutation, permit reads, represent
@@ -466,18 +681,8 @@ Immutable references:
       18 |  println(r3.*); # prints 0
 
 Slices:
-Optionals:
-Functions:
-Structs:
-Modules:
-Enums:
-Interfaces:
-Generics:
-Allocators:
+Expose:
+Import:
 Entry points:
 Constraints:
-Importing:
-Command Line Interface CLI:
-Blocks:
-Expressions:
-Statements:
+Command Line Interface:

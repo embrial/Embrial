@@ -1,0 +1,26 @@
+fn foo(x i32, y i32) i32 {
+#comment
+    return x;
+}
+
+var x i32 = foo(0,1);
+print(x); # prints 1
+#comment
+fn bar(x i32) i32: x;
+
+var y i32 = bar(2);
+print(y); # prints 2
+#comment
+#   baz is a function that takes two i32 arguments and returns an i32
+#   VVVVVVVVVVVVVVVVVVVVVVVV
+var baz fn(x i32, y i32) i32   = fn(x, y): y;
+#                                ^^^^^^^^^^^
+#                                lambda definition
+z = baz(3,4);
+print(z); # prints 4
+baz = foo;
+z = baz(3,4);
+print(z); # prints 3
+#comment
+z = z.baz(5);
+print(z); # prints 5

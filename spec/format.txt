@@ -1,39 +1,45 @@
 Table of contents:
     Table of contents: .....................................................   1
-    AI Assistance Disclosure: ..............................................  38
-    License: ...............................................................  44
-    Introduction: ..........................................................  53
-    Notation: ..............................................................  64
-    Source code representation: ............................................  94
-    Characters: ............................................................ 110
-    Comments: .............................................................. 112
-    Keywords: .............................................................. 143
-    Operators and punctuation: ............................................. 146
-    Integer literals: ...................................................... 177
-    Floating point literals: ............................................... 180
-    Memory model: .......................................................... 183
-    Bindings: .............................................................. 205
-    Reference types: ....................................................... 235
-    Owning types: .......................................................... 253
-    Non owning types: ...................................................... 277
-    Mutable references: .................................................... 286
-    Immutable references: .................................................. 297
-    Slices: ................................................................ 308
-    Optionals: ............................................................. 309
-    Functions: ............................................................. 310
-    Structs: ............................................................... 311
-    Modules: ............................................................... 312
-    Enums: ................................................................. 313
-    Interfaces: ............................................................ 314
-    Generics: .............................................................. 315
-    Allocators: ............................................................ 316
-    Entry points: .......................................................... 317
-    Constraints: ........................................................... 318
-    Importing: ............................................................. 319
-    Command Line Interface CLI: ............................................ 320
-    Blocks: ................................................................ 321
-    Expressions: ........................................................... 322
-    Statements: ............................................................ 323
+    AI Assistance Disclosure: ..............................................  44
+    License: ...............................................................  50
+    Introduction: ..........................................................  59
+    Notation: ..............................................................  70
+    Source code representation: ............................................ 100
+    Characters: ............................................................ 116
+    Comments: .............................................................. 118
+    Keywords: .............................................................. 149
+    Operators and punctuation: ............................................. 152
+    Integer literals: ...................................................... 190
+    Floating point literals: ............................................... 193
+    Memory model: .......................................................... 196
+    Bindings: .............................................................. 218
+    Blocks and Scopes: ..................................................... 254
+    Functions: ............................................................. 289
+    Lambas: ................................................................ 317
+    Methods: ............................................................... 323
+    Enums: ................................................................. 324
+    Structs: ............................................................... 325
+    Interfaces: ............................................................ 326
+    Modules: ............................................................... 327
+    Include: ............................................................... 328
+    Generics: .............................................................. 329
+    Control flow: .......................................................... 330
+    Expressions: ........................................................... 331
+    Optionals: ............................................................. 332
+    Error handling: ........................................................ 333
+    Allocators: ............................................................ 334
+    Lifetimes: ............................................................. 335
+    Reference types: ....................................................... 337
+    Owning types: .......................................................... 355
+    Non owning types: ...................................................... 379
+    Mutable references: .................................................... 388
+    Immutable references: .................................................. 399
+    Slices: ................................................................ 410
+    Expose: ................................................................ 411
+    Import: ................................................................ 412
+    Entry points: .......................................................... 413
+    Constraints: ........................................................... 414
+    Command Line Interface: ................................................ 415
 
 AI Assistance Disclosure:
     This language specification was written with AI assistance from ChatGPT and
@@ -145,14 +151,14 @@ Keywords:
 
 Operators and punctuation:
     Basic  Wrapping  Saturating  Assigning  Wrapping   Saturating
-    +       +%       +|          +=          +%=       +|=
-    -      -%        -|          -=          -%=       -|=
-    *      *%        *|          *=          *%=       %|=
+    +       +%       +|          +=         +%=        +|=
+    -      -%        -|          -=         -%=        -|=
+    *      *%        *|          *=         *%=        %|=
     /                            /=                       
     //                           //=
     %                            %=                       
-    <<              <<|         <<=                   >>|=
-    >>              >>|         >>=                   >>|=
+    <<              <<|         <<=                    >>|=
+    >>              >>|         >>=                    >>|=
 
     Bitwise  Logical  Bitwise assigning
     &         &&       &=
@@ -165,11 +171,18 @@ Operators and punctuation:
     [   ]
     {   }
 
+    Single Expression Block
+    :
+
     Dot  Exclusive  Inclusive  Vararg
     .    ..         ..=        ...
 
-    Reference  Reference To  Allocation  Single Expression Block
-    ~          $             @           :
+               Reference Specifier  Reference to
+    Mutable    *                    &
+    Immutable  ~                    $
+
+    Allocated Specifier 
+    @
 
     Misc
     ,   ;
@@ -231,6 +244,95 @@ Bindings:
     A binding can be declared and initialized in one line as follows,
 
     #block
+
+    By default all basic bindings follow copy semantics, meaning that during an
+    assignment the value contained in the source binding is copied to the target
+    binding. The owned type specifier '@' and mutable reference specifier '*'
+    change the assignment semantics of the effected bindings to be move
+    semantics. 
+
+Blocks and Scopes:
+    The scope of a binding refers to the region of a program in which that
+    binding can be accessed. Embrial is statically scoped, meaning that the
+    scope of a binding can be determined by examining the program text.
+
+    A file begins with a single. Opening and closing, curly parenthesis, are
+    used to delimit the start and end respectively of a smaller region of scope
+    called a block. The contents of a block, excluding its delimiters is called
+    its scope. Blocks may contain other blocks.
+
+    To determine to which binding an identifier refers to, first search the
+    current scope for a binding with the given name that appears before the
+    identifier's usage. If no such binding is found, continue searching
+    enclosing scopes outwards until either a qualifying biding is found or the
+    start of the file is reached. If such a binding is found, then the
+    identifier refers to that binding.
+
+    #block spec/scopes.txt
+
+    When the compiler sees x as println's first argument on line 5, there is no
+    binding named x defined in the current scope above the usage. Therefore the
+    compiler continues it's search upwards until it finds the binding x defined
+    on line 1.
+
+    #block
+
+    When the compiler sees the declaration on line 7 it records that 'x' is
+    defined in the current scope. This declaration of x shadows the one declared
+    on line 1, now assignments to x in this scope will affect the binding
+    defined on line 7, rather then the one defined on line 1. When x is defined
+    again on line 8, the compiler performs the same search and finds that x was
+    already defined on line 7, and emits an error.
+
+    #block
+
+Functions:
+    #keyword fn
+    #keyword return
+    #spec/functionSyntax.txt
+    A function defines a named sequence of operations that can be executed by
+    calling it. 'print' and 'println' are examples of functions. 
+
+    When a function is called, its operations are executed in a new stack frame.
+    Functions declare a list of parameters that specify the types of argument
+    accepted by the function. At the call site, arguments are evaluated and
+    their values are copied or moved into the corresponding parameters within
+    the function's stack frame.
+
+    #block spec/functions.txt
+
+    When the execution of a function ends, a value can be returned using a
+    return statement. The functions signature specifies the type of the value
+    that must be returned by the function. If the functions return type is
+    'void' then the function cannot return a value.
+
+    #block
+
+    For a function an alternative way to write a block of the form,
+    'fn foo(x i32) i32 {return x;}' is to write
+    'fn foo(x i32) i32: x;'
+
+    #block
+
+Lambas:
+    A lambda is a function without a name. A binding's type can be function
+    signature.
+
+    #block
+
+Methods:
+Enums:
+Structs:
+Interfaces:
+Modules:
+Include:
+Generics:
+Control flow:
+Expressions:
+Optionals:
+Error handling:
+Allocators:
+Lifetimes:
     
 Reference types:
     Traditional pointer types have too many responsibilities. A pointer may own
@@ -306,18 +408,8 @@ Immutable references:
     #block spec/immutableReferences.txt
 
 Slices:
-Optionals:
-Functions:
-Structs:
-Modules:
-Enums:
-Interfaces:
-Generics:
-Allocators:
+Expose:
+Import:
 Entry points:
 Constraints:
-Importing:
-Command Line Interface CLI:
-Blocks:
-Expressions:
-Statements:
+Command Line Interface:
