@@ -1,30 +1,12 @@
 const std = @import("std");
 
-pub fn main() !void {
-    recalculateSpec("spec/format.txt") catch |e| switch (e) {
+pub fn main(init: std.process.Init) !void {
+    recalculateSpec(init.io, "spec/format.txt") catch |e| switch (e) {
         error.FileNotFound => {
             std.debug.print("Warning: spec/format.txt not found: {}\n", .{e});
         },
         else => return e,
     };
-//    const spec = try std.fs.cwd().openFile(
-//        "Embrial/spec/format.txt",
-//        .{ .mode = .read_only },
-//    );
-//    defer spec.close();
-//
-//    var buffer: [1024]u8 = undefined;
-//    var spec_reader = spec.reader(&buffer);
-//    var reader = &spec_reader.interface;
-//
-//    std.debug.print("POS: {}\n", .{try spec.getPos()});
-//
-//    while (try reader.takeDelimiter('\n')) |line| {
-//        std.debug.print("LINE [{d}]: [{s}]\n", .{
-//            line.len,
-//            line,
-//        });
-//    }
 
     std.debug.print("DONE\n", .{});
 }
@@ -45,12 +27,9 @@ fn asciiLessThan(_: void, lhs: []const u8, rhs: []const u8) bool {
     return std.mem.order(u8, lhs, rhs) == .lt;
 }
 
-fn recalculateSpec(directory: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
+fn recalculateSpec(io: std.Io, directory: []const u8) !void {
     // create an arena
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
     const allocator = arena.allocator();
@@ -59,20 +38,21 @@ fn recalculateSpec(directory: []const u8) !void {
     var keywords: std.ArrayList([]const u8) = .empty;
 
     // parse the spec file
-    const spec = try std.fs.cwd().openFile(directory, .{.mode = .read_only});
-    defer spec.close();
+    const cwd = std.Io.Dir.cwd();
+    const spec = try cwd.openFile(io, directory, .{.mode = .read_only});
+    defer spec.close(io);
 
     var buffer: [1024]u8 = undefined;
     var lineNumber: usize = 0;
-    var specReader = spec.reader(&buffer);
+    var specReader = spec.reader(io, &buffer);
     var reader = &specReader.interface;
 
     // discover directives:
     while (reader.takeDelimiter('\n')) |maybeLine| {
         const line = maybeLine orelse break;
         lineNumber += 1;
-        const noCharachterReturn = std.mem.trimRight(u8, line, "\r");
-        const cleanLine = std.mem.trimLeft(u8, noCharachterReturn, " \t");
+        const noCharachterReturn = std.mem.trimEnd(u8, line, "\r");
+        const cleanLine = std.mem.trimStart(u8, noCharachterReturn, " \t");
 
         const originalAddress = @intFromPtr(noCharachterReturn.ptr);
         const trimmedAddress = @intFromPtr(cleanLine.ptr);
@@ -103,7 +83,7 @@ fn recalculateSpec(directory: []const u8) !void {
         } else continue;
 
         std.debug.print("DETECTED   DIRECTIVE on line {d: >8}: {s}\n", .{lineNumber, cleanLine});
-        const filepath = std.mem.trimLeft(u8, directive.filepath, " \t");
+        const filepath = std.mem.trimStart(u8, directive.filepath, " \t");
         directive.filepath = try allocator.dupe(u8, filepath);
 
         try directives.append(arena.allocator(), directive);
@@ -179,30 +159,29 @@ fn recalculateSpec(directory: []const u8) !void {
     std.debug.print("GENERATED KEYWORD TABLE:\n{s}", .{wordSquareBuffer});
 
     // output the result of processing all the directives
-    try spec.seekTo(0);
-
-    specReader = spec.reader(&buffer);
+    specReader = spec.reader(io, &buffer);
+    try specReader.seekTo(0);
     reader = &specReader.interface;
 
-    const manual = try std.fs.cwd().createFile("manual.txt", .{});
-    defer manual.close();
+    const manual = try cwd.createFile(io, "manual.txt", .{});
+    defer manual.close(io);
 
-    var manualFileWriterIdk = manual.writer(&.{});
+    var manualFileWriterIdk = manual.writer(io, &.{});
     const manualFileWriter = &manualFileWriterIdk.interface;
 
     lineNumber = 0;
     var currentDirective: usize = 0;
     var directive = directives.items[0];
 
-    var sourceFile: ?std.fs.File = null;
+    var sourceFile: ?std.Io.File = null;
     var expectingBlockDirective = false;
     var codeBlockLine: usize = undefined;
     var padding: usize = undefined;
     var sourceBuffer: [1024]u8 = undefined;
-    var sourceFileReader: std.fs.File.Reader = undefined;
+    var sourceFileReader: std.Io.File.Reader = undefined;
     var sourceReader: *std.Io.Reader = undefined;
 
-    defer if (sourceFile) |f| f.close();
+    defer if (sourceFile) |f| f.close(io);
 
     while (reader.takeDelimiter('\n')) |maybeLine| {
         const line = maybeLine orelse break;
@@ -214,16 +193,17 @@ fn recalculateSpec(directory: []const u8) !void {
         }
 
         if (directive.kind != .KEYWORD) {
-            std.debug.print("PROCESSING DIRECTIVE on line {d: >8}: {s}\n", .{lineNumber, std.mem.trimLeft(u8, line, " \t")});
+            std.debug.print("PROCESSING DIRECTIVE on line {d: >8}: {s}\n", .{lineNumber, std.mem.trimStart(u8, line, " \t")});
         }
 
-        //std.debug.print("Processing directive: '{s}'\n", .{std.mem.trimLeft(u8, std.mem.trimRight(u8, line, "\r"), " \t")});
+        //std.debug.print("Processing directive: '{s}'\n", .{std.mem.trimStart(u8, std.mem.trimEnd(u8, line, "\r"), " \t")});
         switch (directive.kind) {
             .KEYWORDS => {
                 try manualFileWriter.writeAll(wordSquareBuffer);
             },
             .INCLUDE => {
-                sourceFile = std.fs.cwd().openFile(
+                sourceFile = cwd.openFile(
+                    io,
                     directive.filepath,
                     .{.mode = .read_only}
                 ) catch |err| switch(err) {
@@ -243,11 +223,12 @@ fn recalculateSpec(directory: []const u8) !void {
                     var codeBlockLineCount: usize = 0;
 
                     if (sourceFile) |f| {
-                        f.close();
+                        f.close(io);
                         sourceFile = null;
                     }
 
-                    sourceFile = std.fs.cwd().openFile(
+                    sourceFile = cwd.openFile(
+                        io,
                         directive.filepath,
                         .{.mode = .read_only}
                     ) catch |err| switch(err) {
@@ -257,7 +238,7 @@ fn recalculateSpec(directory: []const u8) !void {
                         },
                         else => return err,
                     };
-                    sourceFileReader = sourceFile.?.reader(&sourceBuffer);
+                    sourceFileReader = sourceFile.?.reader(io, &sourceBuffer);
                     sourceReader = &sourceFileReader.interface;
 
                     while (sourceReader.takeDelimiter('\n')) |maybeBlockLine| {
@@ -267,8 +248,9 @@ fn recalculateSpec(directory: []const u8) !void {
                         if (err != error.EndOfStream) return err;
                     }
 
-                    try sourceFile.?.seekTo(0);
-                    sourceFileReader = sourceFile.?.reader(&sourceBuffer);
+                    // try sourceFile.?.seekTo(io, 0);
+                    sourceFileReader = sourceFile.?.reader(io, &sourceBuffer);
+                    try sourceFileReader.seekTo(0);
                     sourceReader = &sourceFileReader.interface;
 
                     const width = if (codeBlockLineCount == 0) 1 else std.math.log10(codeBlockLineCount);
@@ -278,8 +260,8 @@ fn recalculateSpec(directory: []const u8) !void {
                 }
                 while (sourceReader.takeDelimiter('\n')) |maybeSourceLine| {
                     const sourceLine = maybeSourceLine orelse break;
-                    const noCharachterReturn = std.mem.trimRight(u8, sourceLine, "\r");
-                    const cleanLine = std.mem.trimLeft(u8, noCharachterReturn, " \t");
+                    const noCharachterReturn = std.mem.trimEnd(u8, sourceLine, "\r");
+                    const cleanLine = std.mem.trimStart(u8, noCharachterReturn, " \t");
 
                     if (std.mem.startsWith(u8, cleanLine, "#comment")) {
                         expectingBlockDirective = true;

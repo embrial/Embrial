@@ -36,12 +36,11 @@ pub fn build(b: *std.Build) !void {
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
 
-    exe.linkLibC();
-
-    exe.addCSourceFiles(.{
+    exe.root_module.addCSourceFiles(.{
         .files = &.{
             "src/main.c",
             "src/simd.c",
@@ -53,7 +52,7 @@ pub fn build(b: *std.Build) !void {
         },
     });
 
-    exe.addIncludePath(b.path("include"));
+    exe.root_module.addIncludePath(b.path("include"));
     b.installArtifact(exe);
 
     // Tests:
@@ -62,12 +61,11 @@ pub fn build(b: *std.Build) !void {
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
 
-    tests.linkLibC();
-
-    tests.addCSourceFiles(.{
+    tests.root_module.addCSourceFiles(.{
         .files = &.{
             "tests/main.c"
         },
@@ -78,7 +76,7 @@ pub fn build(b: *std.Build) !void {
         },
     });
 
-    tests.addIncludePath(b.path("include"));
+    tests.root_module.addIncludePath(b.path("include"));
 
     // Zig steps:
 
